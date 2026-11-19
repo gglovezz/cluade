@@ -23,9 +23,11 @@ stm32-antisnore/
 │   │   ├── flash_store.h           # STM32 Flash 伪 EEPROM
 │   │   ├── snore_algo.h            # 鼾声特征 + 状态机
 │   │   ├── posture_algo.h          # 睡眠体位 (仰卧/侧卧) 判定
+│   │   ├── fusion_fsm.h            # 声音+体位融合触发状态机
+│   │   ├── app.h                   # 应用层入口 (APP_Init / APP_Console / APP_Loop)
 │   │   └── unit_test.h             # 单元测试入口
 │   └── Src/                        # 实现
-│       ├── main.c                  # 系统初始化 + 主循环骨架 + printf 重定向
+│       ├── main.c                  # 独立运行版 (使用 CubeMX 工程时不要加入编译)
 │       ├── mic.c
 │       ├── mpu6050.c
 │       ├── oled.c                  # (简单 ASCII 字库, 中文字模可后续替换)
@@ -33,6 +35,8 @@ stm32-antisnore/
 │       ├── flash_store.c
 │       ├── snore_algo.c
 │       ├── posture_algo.c
+│       ├── fusion_fsm.c            # 融合触发状态机实现
+│       ├── app.c                   # 应用层实现 (推荐: 由 CubeMX 的 main.c 调用)
 │       └── unit_test.c             # UART 命令驱动单元测试固件
 ├── PC_Test/                        # 第五章测试数据采集脚本
 │   ├── serial_monitor.py           # 简单串口透传 (pyserial)

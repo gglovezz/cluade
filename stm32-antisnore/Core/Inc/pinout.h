@@ -91,7 +91,7 @@
 #define MIC_SAMPLE_RATE   8000    /* 8 kHz */
 #define MIC_FRAME_LEN     256     /* 每帧 256 样本 → 32ms */
 #define MIC_FRAME_OVERLAP 128
-#define MIC_RING_LEN      1024    /* 环形缓冲 */
+#define MIC_RING_LEN      512     /* 环形缓冲 = 2 帧; DMA 半/全传输各完成 256 样本 = 32ms 一帧 */
 
 /* ============ 舵机参数 ============ */
 #define SERVO_FREQ_HZ     50      /* 50Hz PWM */
