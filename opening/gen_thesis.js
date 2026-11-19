@@ -210,10 +210,10 @@ const bodySection = {
     p(`执行机构选用 SG90 微型舵机，由 TIM1 CH1（PA8）的 PWM 信号驱动。SG90 特性：500μs 脉宽对应 0°，2500μs 对应 180°，工作频率 50Hz（20ms 周期）。TIM1 配置：PSC=71（72MHz→1MHz 时基）、ARR=20000-1（20ms 周期），CCR 寄存器直接写入脉宽值（单位 μs）即可。SERVO_SetAngle 函数内部做 0.0°—180.0° 到 500—2500μs 的线性映射：Pulse = 500 + (angle/180.0)×2000。舵机以中位 90° 作为支撑片水平基准（机械臂居中，向上留有 90° 余量），干预时每次抬升 2°，最大至 105°（相对中位 +15°），避免一步大幅动作惊醒睡眠。`),
 
     h2(`3.5 显示与存储模块`),
-    p(`显示模块为 0.96 英寸 OLED（SSD1306 驱动，128×64 分辨率），通过 I²C2（PB10/SCL、PB11/SDA，地址 0x3C）连接。OLED 驱动实现页帧缓冲 + 简单 8×16 ASCII/数字字库，支持 DrawString/Update/Clear 等基础 API。主循环每 500ms（tick%100==0）刷新一次，3 页轮播：第 0 页显示融合 FSM 状态 + 鼾声/仰卧保持秒数；第 1 页显示当前舵机角度；第 2 页显示累计打鼾次数与干预次数。存储模块利用 STM32F103C8T6 内部 Flash 最后一个 1KB page（地址 0x0800FC00）模拟 EEPROM，存储每日统计数据，带 32 位 CRC checksum 防止掉电数据损坏。`),
+    p(`显示模块为 0.96 英寸 OLED（SSD1306 驱动，128×64 分辨率），通过 I²C2（PB10/SCL、PB11/SDA，地址 0x3C）连接。OLED 驱动实现页帧缓冲 + 简单 8×16 ASCII/数字字库，支持 DrawString/Update/Clear 等基础 API。主循环每 500ms（tick%100==0）刷新一次，3 页轮播：第 0 页显示融合 FSM 状态 + 鼾声/仰卧保持秒数；第 1 页显示当前舵机角度；第 2 页显示累计打鼾次数与干预次数。存储模块利用 STM32F103C8T6 内部 Flash 最后一个 1KB page（地址 0x0800FC00，第 63 页）模拟 EEPROM，存储每日统计数据，带 32 位异或校验和防止掉电数据损坏。`),
 
     h2(`3.6 硬件总体原理图`),
-    p(`图 3-1 为系统硬件总体原理图，展示了 STM32 核心板、MAX4466 麦克风、MPU6050 六轴模块、SG90 舵机、SSD1306 OLED 的连接关系与引脚分配。所有外设引脚独立无冲突：PA0（ADC）、PA8（TIM1_CH1 PWM）、PA9/PA10（USART1 调试）、PB6/PB7（I²C1 MPU6050）、PB10/PB11（I²C2 OLED）、PB0（板载 LED 运行指示）。5V 由 USB 供电，经 AMS1117-3.3 稳压至 3.3V 为 STM32 和各模块供电。`),
+    p(`图 3-1 为系统硬件总体原理图，展示了 STM32 核心板、MAX4466 麦克风、MPU6050 六轴模块、SG90 舵机、SSD1306 OLED 的连接关系与引脚分配。所有外设引脚独立无冲突：PA0（ADC）、PA8（TIM1_CH1 PWM）、PA9/PA10（USART1 调试）、PB6/PB7（I²C1 MPU6050）、PB10/PB11（I²C2 OLED）、PB0（外接 LED 运行指示）。5V 由 USB 供电，经 AMS1117-3.3 稳压至 3.3V 为 STM32 和各模块供电。`),
     ...figWide(`${SCHEM}/schematic.png`, `图 3-1 智能止鼾枕硬件总体原理图`, 900, 300),
 
     /* 第 4 章 软件系统设计与实现 */
@@ -237,7 +237,7 @@ const bodySection = {
     p(`渐进式干预的核心思想是：枕头角度调整不是一步到位，而是通过多次、小步进（2°）、长时间隔（15s）的方式逐步打开呼吸道，让用户身体有充分适应时间，避免突然大幅动作惊醒睡眠。具体策略如下：舵机以中位 90° 为水平基准，第一次干预抬升 2°，然后进入 15s OBSERVE 窗口；窗口到期后检查鼾声是否仍存在、体位是否仍仰卧；如果条件仍满足，再抬升 2°；单次干预过程中最大抬至 105°（相对中位 +15°）；达到上限后保持该角度，待条件消失再回到中位 90°。回位同样按 2° 小步进执行，保证用户体验一致。servo.c 中记录的本轮最大抬升角用于 Flash 存储，供后续复盘分析。`),
 
     h2(`4.6 OLED 显示与 Flash 存储`),
-    p(`OLED 显示以 3 页 500ms 轮播方式工作。第 0 页展示融合 FSM 实时状态（IDLE/ARMED/INTERVENE/OBSERVE/COOLDOWN）与鼾声、仰卧的已保持秒数，便于调试和现场验证融合条件是否满足；第 1 页展示当前舵机角度（float 格式）；第 2 页展示累计打鼾事件次数和累计干预次数（从 Flash 读出）。Flash 存储利用 STM32F103C8T6 最后一个 1KB Flash page（0x0800FC00—0x0800FFFF（第 63 页）），调用 HAL_FLASH_PageErase + HAL_FLASH_Program(WORD) 实现 EEPROM 模拟，存储结构为 {snore_cnt, intervene_cnt, max_angle, crc32}，异或校验和在每次读入时进行，校验失败则用默认值初始化（防止首次烧录或掉电中断写入导致数据损坏）。`),
+    p(`OLED 显示以 3 页 500ms 轮播方式工作。第 0 页展示融合 FSM 实时状态（IDLE/ARMED/INTERVENE/OBSERVE/COOLDOWN）与鼾声、仰卧的已保持秒数，便于调试和现场验证融合条件是否满足；第 1 页展示当前舵机角度（float 格式）；第 2 页展示累计打鼾事件次数和累计干预次数（从 Flash 读出）。Flash 存储利用 STM32F103C8T6 最后一个 1KB Flash page（0x0800FC00—0x0800FFFF，第 63 页），调用 FLASH_PageErase + HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD) 实现 EEPROM 模拟（F1 仅支持半字编程），存储结构为 {magic, snore_cnt, intervene_cnt, max_angle_x10, day_stamp, checksum}，异或校验和在每次读入时进行，校验失败则用默认值初始化（防止首次烧录或掉电中断写入导致数据损坏）。`),
 
     /* 第 5 章 系统测试与结果分析 */
     h1(`第 5 章 系统测试与结果分析`),
