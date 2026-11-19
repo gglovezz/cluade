@@ -51,6 +51,46 @@
 #ifndef __PINOUT_H
 #define __PINOUT_H
 
+#include "stm32f1xx_hal.h"
+
+/* ============ 外设句柄（定义在 CubeMX 生成的 main.c 中） ============
+ * 放在这里而不是 main.h，原因：CubeMX 会重写 main.h，而本文件由我们提供。
+ * 这样无论使用 CubeMX 生成的 main.h 还是本工程的 main.h，app.c / unit_test.c
+ * 里的 hadc1、hi2c1 … 都有声明可用。
+ */
+extern ADC_HandleTypeDef   hadc1;
+extern I2C_HandleTypeDef   hi2c1;
+extern I2C_HandleTypeDef   hi2c2;
+extern TIM_HandleTypeDef   htim1;
+extern TIM_HandleTypeDef   htim2;
+extern UART_HandleTypeDef  huart1;
+
+/* ============ 浮点数格式化（MicroLIB 的 printf 不支持 %f） ============
+ * 用法:
+ *     char s[12];
+ *     fmt_f(s, sizeof(s), 92.54f, 1);   // s = "92.5"
+ *     printf("angle=%s\r\n", s);
+ * decimals 支持 0—3，四舍五入，负数带 "-"。
+ */
+#include <stdio.h>
+static inline void fmt_f(char *buf, unsigned int n, float v, int decimals)
+{
+    static const long mul_tab[4] = {1L, 10L, 100L, 1000L};
+    if (decimals < 0) decimals = 0;
+    if (decimals > 3) decimals = 3;
+    long mul = mul_tab[decimals];
+    int  neg = (v < 0.0f);
+    float av = neg ? -v : v;
+    long s = (long)(av * (float)mul + 0.5f);
+    if (neg && s == 0) neg = 0;
+    switch (decimals) {
+        case 0:  snprintf(buf, n, "%s%d",    neg ? "-" : "", (int)s);                          break;
+        case 1:  snprintf(buf, n, "%s%d.%01d", neg ? "-" : "", (int)(s / 10L),  (int)(s % 10L));  break;
+        case 2:  snprintf(buf, n, "%s%d.%02d", neg ? "-" : "", (int)(s / 100L), (int)(s % 100L)); break;
+        default: snprintf(buf, n, "%s%d.%03d", neg ? "-" : "", (int)(s / 1000L), (int)(s % 1000L)); break;
+    }
+}
+
 /* ============ GPIO Port/Pin ============ */
 #define LED_PIN           GPIO_PIN_0
 #define LED_PORT          GPIOB

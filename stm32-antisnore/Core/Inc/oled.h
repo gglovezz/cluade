@@ -16,7 +16,6 @@ void OLED_Init(I2C_HandleTypeDef *hi2c);
 void OLED_Clear(void);
 void OLED_Update(void);
 void OLED_DrawPixel(int x, int y, uint8_t on);
-void OLED_DrawChar(int x, int y, char c, uint8_t size);
 void OLED_DrawString(int x, int y, const char *s);
 
 #ifdef __cplusplus

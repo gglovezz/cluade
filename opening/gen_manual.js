@@ -89,7 +89,7 @@ function cap(t) {
 function img(path, w, h, caption) {
   return [
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 100 },
-      children: [new ImageRun({ data: fs.readFileSync(path), transformation: { width: w, height: h } })] }),
+      children: [new ImageRun({ type: `png`, data: fs.readFileSync(path), transformation: { width: w, height: h } })] }),
     cap(caption)
   ];
 }
@@ -110,7 +110,7 @@ const cover = {
     new Paragraph({ spacing: { before: 80 }, alignment: AlignmentType.CENTER, indent: { firstLine: 0 },
       children: [run(`软件：STM32CubeMX 6.x + Keil MDK 5（AC5）+ ST-Link 驱动 + CH340 驱动`, { size: 19 })] }),
     new Paragraph({ spacing: { before: 80 }, alignment: AlignmentType.CENTER, indent: { firstLine: 0 },
-      children: [run(`对应工程：13 个头文件 + 11 个源文件（含 app.c 应用层）`, { size: 19 })] }),
+      children: [run(`对应工程：11 个头文件 + 10 个源文件 + AntiSnore.ioc（另附 main.h / main.c 参考）`, { size: 19 })] }),
     new Paragraph({ spacing: { before: 1400 }, alignment: AlignmentType.CENTER, indent: { firstLine: 0 },
       children: [run(`医学信息工程 · 本科毕业设计 · 2026 年 12 月`, { size: 21 })] }),
   ]
@@ -250,7 +250,7 @@ USB 转 TTL CH340 ×1
     h2(`2.1 STM32CubeMX`),
     ...stepList([
       `浏览器打开 st.com，注册并登录 myST 账号（免费）。搜索 STM32CubeMX，点 Get Software，下载 Windows 版压缩包。`,
-      `解压后运行 SetupSTM32CubeMX-6.x.x.exe。安装路径用默认或 D:\STM32CubeMX，不要含中文和空格。`,
+      `解压后运行 SetupSTM32CubeMX-6.x.x.exe。安装路径用默认或 D:\\STM32CubeMX，不要含中文和空格。`,
       `首次启动若提示需要 Java，按提示安装（安装包通常已内置 JRE）。`,
       `菜单 Help → Manage embedded software packages → 展开 STM32F1 → 选 STM32Cube FW_F1 V1.8.x → Install，等待下载完成（约 200MB）。`,
       `确认：新建工程时能在 Part Number 里搜到 STM32F103C8Tx。`,
@@ -259,7 +259,7 @@ USB 转 TTL CH340 ×1
 
     h2(`2.2 Keil MDK-ARM`),
     ...stepList([
-      `keil.com 下载 MDK-Arm 安装包（需填邮箱），运行 MDK5xx.exe。安装路径用 D:\Keil_v5，不要含中文。`,
+      `keil.com 下载 MDK-Arm 安装包（需填邮箱），运行 MDK5xx.exe。安装路径用 D:\\Keil_v5，不要含中文。`,
       `安装结束时勾选 Pack Installer 自动打开；若没打开，从开始菜单手动启动。`,
       `Pack Installer 左侧 Devices → STMicroelectronics → STM32F1 Series → STM32F103 → STM32F103C8，右侧 Packs 选 Keil::STM32F1xx_DFP，点 Install。`,
       `国内网络慢时可离线安装：下载 Keil.STM32F1xx_DFP.2.4.0.pack，双击即可安装。`,
@@ -269,9 +269,9 @@ USB 转 TTL CH340 ×1
     p(`Keil 5.37 之后默认只带 AC6，而 STM32F1 的 HAL 库用 AC5 最稳。若跳过这一步，编译会报大量与编译器相关的错误。`),
     ...stepList([
       `Keil 官网搜索 Arm Compiler 5，下载 ARMCompiler5.06u7.exe（Legacy 页面）。`,
-      `安装到 C:\Keil_v5\ARM\ARMCC（如果你把 Keil 装在 D 盘，就装到 D:\Keil_v5\ARM\ARMCC）。`,
+      `安装到 C:\\Keil_v5\\ARM\\ARMCC（如果你把 Keil 装在 D 盘，就装到 D:\\Keil_v5\\ARM\\ARMCC）。`,
       `打开 Keil → Project → Options for Target → Target 页 → ARM Compiler 下拉框选 Use default compiler version 5。`,
-      `若下拉框里没有 v5：点下拉框右侧的 ...，手动指向 C:\Keil_v5\ARM\ARMCC\bin。`,
+      `若下拉框里没有 v5：点下拉框右侧的 ...，手动指向 C:\\Keil_v5\\ARM\\ARMCC\\bin。`,
     ]),
     note(`如果你已经装的是 Keil 5.36 或更早版本，自带 AC5，可跳过本节。`),
 
@@ -452,6 +452,17 @@ USB 转 TTL CH340 ×1
     p(`操作方式记住三条：① 想用某个引脚，直接在芯片图上左键点它，弹出菜单里选功能；② 想改详细参数，点左侧外设名（如 ADC1），右侧出现 Parameter Settings 表格；③ 想给引脚起名字，右键引脚 → Enter User Label。`),
     p(`本章表格里写的路径（如 System Core → SYS）就是左侧列表的层级：先展开 System Core，再点 SYS。`),
     h2(`4.1 新建工程`),
+    h3(`方式 A：直接打开现成的 AntiSnore.ioc（推荐，约 1 分钟）`),
+    p(`源码包里已带一份配好全部参数的 AntiSnore.ioc，等价于把 4.2—4.8 的表格一次性填完。零基础请先走这条路线：`),
+    ...stepList([
+      `新建空文件夹 D:\\work\\AntiSnore（不要中文、不要空格）。`,
+      `把 源码\\stm32-antisnore\\AntiSnore.ioc 复制进这个空文件夹。`,
+      `双击 AntiSnore.ioc。CubeMX 打开后先看芯片图：PA0、PA8、PA9、PA10、PB0、PB6、PB7、PB10、PB11、PC13 应都有颜色标记。`,
+      `直接跳到 4.9 点 GENERATE CODE；4.2—4.8 只看不填，用作核对。`,
+    ]),
+    note(`.ioc 由 CubeMX 6.x 保存。若你的 CubeMX 是 5.x 或提示“无法打开工程”，走方式 B，参数完全等价。无论哪条路线，生成后都要做 4.9 后面的「生成后 30 秒核对」。`),
+    h3(`方式 B：从零新建（.ioc 打不开时）`),
+    p(`先建一个空工程，再按 4.2—4.8 的表格逐项填写。`),
     ...stepList([
       `File → New Project。`,
       `Part Number 搜索框输入 STM32F103C8，列表选 STM32F103C8Tx，点右上角 Start Project。`,
@@ -522,10 +533,29 @@ USB 转 TTL CH340 ×1
     ...stepList([
       `切到 Project Manager 页。Project Name 填 AntiSnore，Project Location 选 D:\\work（不要中文、不要空格）。`,
       `Toolchain / IDE 选 MDK-ARM，Min Version 选 V5。`,
-      `Code Generator 页：勾 Copy only the necessary library files；不要勾 Generate peripheral initialization as a pair of .c/.h files（本手册按全部生成在 main.c 里说明）。`,
+      `Code Generator 页：勾 Copy only the necessary library files；并保持勾选 Generate peripheral initialization as a pair of .c/.h files（生成 adc.c / i2c.c / tim.c / usart.c / gpio.c，对应 4.10 的目录）。`,
       `点右上角 GENERATE CODE，等进度条结束，弹窗点 Open Project，Keil 自动打开工程。`,
     ]),
     note(`GENERATE CODE 报红：先看下方 Messages 窗口的第一条。常见是路径含中文、目标目录无写权限、或固件包缺失。改完再点一次 GENERATE CODE 即可，不需要重建工程。`),
+    h3(`生成后 30 秒核对（方式 A / B 都要做）`),
+    p(`CubeMX 生成的是「骨架」，下面 6 项决定后面能不能跑起来。花 30 秒在 Keil 或记事本里核对一遍，比事后查一天快得多。`),
+    table([2300, 2700, 1800], [`检查位置`, `应看到`, `不对怎么办`], [
+      [`Core\\Src\\stm32f1xx_it.c`, `存在函数 DMA1_Channel1_IRQHandler，函数体为 HAL_DMA_IRQHandler(&hdma_adc1);`, `按下面的代码手工补上`],
+      [`Core\\Src\\main.c`, `MX_DMA_Init(); 出现在 MX_ADC1_Init(); 之前`, `把这两行调换顺序`],
+      [`Core\\Src\\tim.c`, `TIM2 的 Prescaler=71、Period=124`, `回 CubeMX 的 TIM2 页改`],
+      [`Core\\Src\\tim.c`, `TIM1 的 Period=19999、Pulse=1500`, `回 CubeMX 的 TIM1 页改`],
+      [`Core\\Src\\i2c.c`, `两处 Init.ClockSpeed = 400000`, `回 CubeMX 的 I2C1/I2C2 页改`],
+      [`Core\\Src\\usart.c`, `Init.BaudRate = 115200`, `回 CubeMX 的 USART1 页改`],
+    ]),
+    cap(`表 4-2 生成后核对表`),
+    p(`若 stm32f1xx_it.c 里没有 DMA1_Channel1_IRQHandler，打开该文件，在 USER CODE BEGIN 1 与 USER CODE END 1 之间粘贴：`),
+    ...code(String.raw`extern DMA_HandleTypeDef hdma_adc1;
+
+void DMA1_Channel1_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(&hdma_adc1);
+}`),
+    note(`为什么必须补：ADC 的 DMA 传输完成/半完成中断靠这个函数转发给 HAL。缺了它，中断会落到默认死循环，现象是「上电打印完启动横幅就卡住」或「麦克风数据永不更新」。`, `FFF0F0`),
     h2(`4.10 生成目录核对`),
     ...code(String.raw`D:\work\AntiSnore\
 ├── AntiSnore.ioc                 ← 以后改配置双击它
@@ -543,11 +573,12 @@ USB 转 TTL CH340 ×1
     note(`动手前先把 智能止鼾枕_一键工具包.zip 解压到 D:\\work（得到 D:\\work\\智能止鼾枕_一键工具包\\），源码在其中的 源码\\stm32-antisnore。不要解压到桌面、下载文件夹或含中文的路径。本章下面提到的“左边窗口”就是解压后的 源码\\stm32-antisnore 目录。`),
     ...stepList([
       `打开两个资源管理器窗口：左边是 源码\\stm32-antisnore\\Core\\Inc，右边是 D:\\work\\AntiSnore\\Core\\Inc。`,
-      `在左边按住 Ctrl 选中 10 个 .h（不要选 main.h、stm32f1xx_hal_conf.h），Ctrl+C，到右边 Ctrl+V。`,
+      `在左边按住 Ctrl 选中 11 个 .h（不要选 main.h、stm32f1xx_hal_conf.h），Ctrl+C，到右边 Ctrl+V。`,
       `若弹出“目标包含同名文件”，说明你误选了 main.h 或 stm32f1xx_hal_conf.h，点取消后重新只选我们提供的文件。`,
       `同样把 Core\\Src 下 10 个 .c 复制到 D:\\work\\AntiSnore\\Core\\Src；遇到 main.c 一律选“跳过”。`,
-      `复制完成后数一遍：Inc 目录应比原来多 10 个 .h，Src 目录多 10 个 .c。`,
+      `复制完成后数一遍：Inc 目录应比原来多 11 个 .h，Src 目录多 10 个 .c。`,
     ]),
+    note(`为什么不用改 main.h：CubeMX 生成的 main.h 只包含 HAL 头文件，并不声明 hadc1/hi2c1 这些句柄。我们把 6 个 extern 声明放在了 pinout.h 里（app.c、unit_test.c 都会包含它），所以你不需要动 CubeMX 的 main.h，也不会在下次重新生成代码时被覆盖。`),
     ...code(String.raw`源: Core\Inc\  →  目标: AntiSnore\Core\Inc\
     app.h  pinout.h  mic.h  mpu6050.h  oled.h  servo.h
     flash_store.h  snore_algo.h  posture_algo.h  fusion_fsm.h  unit_test.h
@@ -575,6 +606,7 @@ USB 转 TTL CH340 ×1
     ]),
     cap(`表 5-1 Keil 必改设置`),
     note(`--c99 必须加：本工程大量使用 for (int i = 0; ...) 这类 C99 写法，Keil AC5 默认 C90 会直接报错。`),
+    note(`MicroLIB 的 printf 不支持 %f：本工程所有浮点输出都用 pinout.h 里的 fmt_f() 先转成字符串再打印（如 angle=92.5），所以串口和 OLED 都能正常显示小数。你自己加打印时也请照这个写法，不要直接写 %.1f。`, `F0FFF4`),
     h2(`5.4 在 main.c 里粘贴 4 段代码`),
     p(`打开 Core\\Src\\main.c，只改 CubeMX 用注释标出的 USER CODE 区域。这四段区域在重新生成代码时不会被清空。`),
     p(`先认清 main.c 的结构（外设初始化函数的先后顺序以 CubeMX 实际生成的为准，你只需要找 USER CODE 标记）：`),
@@ -678,9 +710,10 @@ while (1)
 
     h2(`第 3 关：OLED（I2C2）`),
     pKv(`操作：`, `串口输入 2。`),
-    pKv(`预期：`, `屏幕连续 10 帧显示 OLED Test #0…#9、Hello STM32!、1234567890；串口打印 PASS: OLED drew 10 frames。`),
+    pKv(`预期：`, `屏幕连续 10 帧显示 OLED Test #0…#9、Hello STM32!、1234567890；串口打印 PASS: OLED drew 10 frames。字号为 8×16，一屏可放 16 字符 × 4 行。`),
     pKv(`失败分支：`, `全黑 → 先确认 VCC=3.3V；再查 SCL/SDA 是否接到 PB10/PB11（不是 PB6/PB7）；模块地址可能为 0x3D，改 pinout.h 的 OLED_I2C_ADDR 为 (0x3D<<1)。`),
     pKv(`花屏/雪花：`, `I2C 速率降到 100kHz（CubeMX 里改），或缩短杜邦线。`),
+    pKv(`字母显示不全（如只出现 H 和 STM32）：`, `说明烧的是旧版 oled.c（旧字库只有大写和数字）。用源码包里的最新 oled.c 覆盖后重新编译；新版字库覆盖 0x20—0x7E，小写和 : . % 都能正常显示。`),
 
     h2(`第 4 关：MPU6050（I2C1）`),
     pKv(`操作：`, `串口输入 1，保持板子静止 2 秒。`),
@@ -691,7 +724,8 @@ while (1)
     h2(`第 5 关：麦克风（ADC-DMA）`),
     pKv(`操作：`, `串口输入 4，先安静 2 秒，再对着麦克风说话。`),
     pKv(`预期：`, `打印 min/max/avg，avg 在 2048 附近；安静时 pk-pk 数十，说话时 pk-pk 大于 200 并打印 PASS。`),
-    pKv(`失败分支：`, `pk-pk=0 且 avg≈0 → ADC 没转换，检查 CubeMX 的 Trigger 是否选了 Timer2 TRGO、DMA 是否 Circular；pk-pk 很小 → 拧大 MAX4466 增益电位器；avg 恒为 4095 → 接了 5V 供电导致输出饱和。`),
+    pKv(`失败分支：`, `pk-pk=0 且 avg≈0 → ADC 没转换，检查 CubeMX 的 Trigger 是否选了 Timer2 TRGO、DMA 是否 Circular、stm32f1xx_it.c 是否有 DMA1_Channel1_IRQHandler（见 4.9 核对表）；pk-pk 很小 → 拧大 MAX4466 增益电位器；avg 恒为 4095 → 接了 5V 供电导致输出饱和。`),
+    pKv(`输入 4 后板子卡死、串口断掉：`, `多半是 HardFault（默认栈只有 1KB，旧版 unit_test.c 把 1KB 缓冲放在栈上）。用最新 unit_test.c（已改为 static）重新编译即可。`),
     h3(`增益调节（做到这一步才算过关）`),
     ...stepList([
       `安静环境运行测试 4，读 pk-pk 值；用小螺丝刀缓慢顺时针拧 MAX4466 上的蓝色电位器。`,
@@ -714,6 +748,7 @@ while (1)
     pKv(`卡在 ARMED：`, `说明双条件成立后又被清零。检查播放的鼾声是否断续（每断一次 Snore 计时归零），换成连续音频；或板子是否被手碰得 roll 超过 20°。`),
     pKv(`舵机只动一次：`, `正常现象——之后每次动作间隔 15 秒 OBSERVE。耐心等，或把 fusion_fsm.h 的 FUSION_OBSERVE_MS 临时改为 3000 加快演示。`),
     pKv(`OLED 显示 INTERVENE 但舵机不动：`, `先单独跑第 6 关；若第 6 关正常，检查 PA8 是否被其它线压住、舵机 5V 是否掉到 4.5V 以下。`),
+    pKv(`计时偏大（3 秒变 4—5 秒、15 秒变 20 秒）：`, `说明烧的是旧版 fusion_fsm.c（按固定 5ms 累加，OLED 刷新拖慢主循环就会偏大）。最新版已改用 HAL_GetTick() 真实毫秒计时，误差小于 1%。`),
 
     /* ---------- 第 8 章 ---------- */
     h1(`第 8 章 机械组装与整机装配`),
@@ -787,6 +822,7 @@ while (1)
       [`Error: L6218E: Undefined symbol HAL_ADC_Init`, `hal_conf 未启用 ADC 模块`, `CubeMX 里确认 ADC1 已配置并重新生成`],
       [`error: #5: cannot open source input file "app.h"`, `Include Paths 缺 Core\\Inc`, `5.3 补路径`],
       [`error: #20: identifier "huart1" is undefined`, `main.c 未包含 CubeMX 的 main.h`, `确认 main.c 顶部 #include "main.h"`],
+      [`error: #20: identifier "hadc1" is undefined（或 hi2c1/hi2c2/htim1/htim2）`, `pinout.h 是旧版，或没把 pinout.h 复制进工程`, `用源码包最新 pinout.h 覆盖（其中已含 6 个 extern 句柄声明）`],
       [`error: #268 / expected a ";"（for 循环处）`, `AC5 默认 C90`, `Misc Controls 加 --c99`],
       [`Error: L6200E: Symbol HAL_ADC_ConvCpltCallback multiply defined`, `我们的 main.c 也被加进工程了`, `从工程移除 Core\\Src\\main.c`],
       [`warning: #223-D: function "printf" declared implicitly`, `缺 #include <stdio.h>`, `在 USER CODE Includes 加上`],
@@ -822,6 +858,10 @@ while (1)
       [`Flash 计数每次归零`, `写保护或地址冲突`, `确认 STATS 地址 0x0800FC00（第 63 页）未被程序占用`],
       [`Keil 里中文注释变乱码`, `编辑器编码不是 UTF-8`, `Edit → Configuration → Editor → Encoding 选 UTF-8 后重开文件`],
       [`上电直接卡住、串口无横幅`, `某个模块初始化死等（多为 I2C）`, `拔掉 MPU6050 或 OLED 再上电，若恢复说明该模块接线错`],
+      [`打印完启动横幅、按 r 后立刻卡死`, `stm32f1xx_it.c 缺 DMA1_Channel1_IRQHandler`, `按 4.9 核对表补 5 行中断函数后重编`],
+      [`输入 4 时板子卡死或复位`, `旧版 unit_test.c 把 1KB 缓冲放在 1KB 栈上`, `用最新 unit_test.c（缓冲已改 static）`],
+      [`OLED 只显示大写、小写字母处空白`, `旧版 oled.c 字库只有大写和数字`, `用最新 oled.c（0x20—0x7E 全字符）覆盖`],
+      [`3 秒实际要等 4—5 秒`, `旧版 fusion_fsm.c 按固定 5ms 累加`, `用最新 fusion_fsm.c（HAL_GetTick 真实计时）`],
       [`串口只能收不能发`, `CH340 的 RXD 没接 PA9`, `按表 3-1 补接，注意 TX/RX 交叉`],
       [`OLED 出现方块`, `字库只支持 ASCII`, `不要显示中文，改用英文或数字`],
     ]),

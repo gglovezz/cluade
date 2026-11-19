@@ -14,6 +14,7 @@
 #include <string.h>
 
 /* 独立模块头文件 */
+#include "pinout.h"
 #include "mic.h"
 #include "mpu6050.h"
 #include "oled.h"
@@ -61,9 +62,8 @@ int main(void) {
     MX_TIM2_Init();
     MX_USART1_UART_Init();
 
-    /* ------ 单元测试入口:按住 PC13 或在串口输入 't' 进入单测模式 ------ */
+    /* ------ 单元测试入口:串口输入 '1'—'4'/'a' 进入单测模式 ------ */
     uint8_t ch = 0;
-    uint32_t wait = 0;
     printf("\r\n========== 智能止鼾枕 启动 ==========\r\n");
     printf("输入: '1'=MPU自检  '2'=OLED自检  '3'=舵机自检  '4'=麦克风采样\r\n");
     printf("      'a'=全部单元测试  'r'=运行主循环\r\n> ");
@@ -73,7 +73,7 @@ int main(void) {
             if (ch == '1') { UNIT_TEST_RUN(UT_MPU6050); }
             else if (ch == '2') { UNIT_TEST_RUN(UT_OLED); }
             else if (ch == '3') { UNIT_TEST_RUN(UT_SERVO); }
-            else if (ch == '4') { UNIT_TEST_RUN(UT_MIC); }
+            else if (ch == '4') { UNIT_TEST_RUN(UT_MICRO); }
             else if (ch == 'a') { UNIT_TEST_RUN(UT_ALL); }
             else if (ch == 'r') { break; }
             printf("\r\n> "); fflush(stdout);
@@ -114,7 +114,7 @@ int main(void) {
 
         /* 鼾声检测 (每 32ms 触发 —— 由 DMA/定时器中断写入 MIC_FRAME_LEN 样本) */
         if (MIC_FrameReady_Flag()) {
-            uint16_t frame[MIC_FRAME_LEN];
+            static uint16_t frame[MIC_FRAME_LEN];   /* 静态: 避免 512B 占用 1KB 栈 */
             MIC_ReadFrame(frame);
             SNORE_Algo_Update(frame, MIC_FRAME_LEN);
         }
@@ -135,9 +135,9 @@ int main(void) {
                 OLED_DrawString(0, 0, line1);
                 OLED_DrawString(0, 16, line2);
             } else if (page == 1) {
-                float ang = SERVO_GetCurrentAngle();
-                char buf[24];
-                snprintf(buf, sizeof(buf), "Angle: %.1f deg", ang);
+                char s_ang[10], buf[24];
+                fmt_f(s_ang, sizeof(s_ang), SERVO_GetCurrentAngle(), 1);
+                snprintf(buf, sizeof(buf), "Angle: %s deg", s_ang);
                 OLED_Clear();
                 OLED_DrawString(0, 0, buf);
             } else {
@@ -156,8 +156,12 @@ int main(void) {
         uint8_t ch2;
         if (HAL_UART_Receive(&huart1, &ch2, 1, 0) == HAL_OK) {
             /* 可以在此扩展远程控制 */
-            if (ch2 == 's') { printf("snore=%d supine=%d angle=%.1f\r\n",
-                SNORE_Algo_IsSnoring(), POSTURE_Algo_IsSupine(), SERVO_GetCurrentAngle()); }
+            if (ch2 == 's') {
+                char s_ang[10];
+                fmt_f(s_ang, sizeof(s_ang), SERVO_GetCurrentAngle(), 1);
+                printf("snore=%d supine=%d angle=%s\r\n",
+                       SNORE_Algo_IsSnoring(), POSTURE_Algo_IsSupine(), s_ang);
+            }
         }
     }
 }
@@ -208,7 +212,7 @@ void MX_USART1_UART_Init(void){}
 void BSP_Init(void) {
     /* LED PB0 推挽输出 */
     GPIO_InitTypeDef g = {0};
-    LED_GPIO_CLK_ENABLE();   /* 必须在 stm32f1xx_hal_conf.h 里开启 GPIOB */
+    __HAL_RCC_GPIOB_CLK_ENABLE();   /* PB0 属于 GPIOB, 使用前必须开时钟 */
     g.Pin   = LED_PIN;
     g.Mode  = GPIO_MODE_OUTPUT_PP;
     g.Pull  = GPIO_NOPULL;

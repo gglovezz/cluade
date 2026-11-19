@@ -1,21 +1,22 @@
 # 整体目录结构说明
-# 所有核心 C/H 源文件可直接放到 Keil MDK / STM32CubeIDE / Makefile 任意一种工具链
-# 以下为论文附录 B 所需源码清单
+# 推荐流程: 用 AntiSnore.ioc 生成 CubeMX 工程, 再按《实物实现操作手册》第 5 章把
+#           Core/Inc、Core/Src 中的 .c/.h 加入工程 (不要加入本工程的 main.c)
 
 stm32-antisnore/
 ├── README.md                       # 本文件
-├── Makefile                        # 标准 arm-none-eabi-gcc 交叉编译脚本
-├── generate_hal.bat               # Windows 环境 CubeMX 手动配置提示
+├── AntiSnore.ioc                   # CubeMX 工程配置 (双击打开 → GENERATE CODE)
+├── Makefile                        # arm-none-eabi-gcc 脚本 (进阶, 需自行补 HAL 库)
+├── generate_hal.bat               # 生成工程的两条路线说明 (推荐 .ioc)
 ├── linker/
-│   └── STM32F103C8Tx_FLASH.ld      # 链接脚本 (FLSH 64KB, RAM 20KB)
+│   └── STM32F103C8Tx_FLASH.ld      # 链接脚本 (FLASH 64KB, RAM 20KB)
 ├── hardware/
 │   ├── schematic.dot               # Graphviz 原理图源文件
-│   ├── schematic.png               # 渲染后原理图 (需安装 graphviz)
-│   └── pinout.md                   # 完整引脚分配表 (也在 Core/Inc/pinout.h)
+│   ├── schematic.png               # 渲染后原理图
+│   └── figures/                    # 论文第 5 章 8 张数据图
 ├── Core/
 │   ├── Inc/                        # 头文件
-│   │   ├── main.h
-│   │   ├── pinout.h                # 引脚表 (48 引脚逐项说明)
+│   │   ├── main.h                  # 仅本仓库参考用; CubeMX 工程请用它自己生成的 main.h
+│   │   ├── pinout.h                # 引脚表 + 外设句柄 extern + fmt_f 浮点格式化
 │   │   ├── mic.h                   # 麦克风 ADC-DMA 驱动
 │   │   ├── mpu6050.h               # MPU6050 驱动 + Mahony 互补融合
 │   │   ├── oled.h                  # SSD1306 I²C 页帧缓冲
@@ -27,22 +28,24 @@ stm32-antisnore/
 │   │   ├── app.h                   # 应用层入口 (APP_Init / APP_Console / APP_Loop)
 │   │   └── unit_test.h             # 单元测试入口
 │   └── Src/                        # 实现
-│       ├── main.c                  # 独立运行版 (使用 CubeMX 工程时不要加入编译)
+│       ├── main.c                  # 逻辑参考骨架 (外设初始化由 CubeMX 生成, 不要加入编译)
 │       ├── mic.c
 │       ├── mpu6050.c
-│       ├── oled.c                  # (简单 ASCII 字库, 中文字模可后续替换)
+│       ├── oled.c                  # 8×16 ASCII 字库 (0x20—0x7E, 含小写与符号)
 │       ├── servo.c
 │       ├── flash_store.c
 │       ├── snore_algo.c
 │       ├── posture_algo.c
-│       ├── fusion_fsm.c            # 融合触发状态机实现
+│       ├── fusion_fsm.c            # 融合触发状态机 (真实毫秒计时)
 │       ├── app.c                   # 应用层实现 (推荐: 由 CubeMX 的 main.c 调用)
 │       └── unit_test.c             # UART 命令驱动单元测试固件
-├── PC_Test/                        # 第五章测试数据采集脚本
-│   ├── serial_monitor.py           # 简单串口透传 (pyserial)
-│   └── mic_plot.py                 # ADC 原始波形可视化 (matplotlib)
+├── PC_Test/                        # 第五章测试与仿真
+│   ├── serial_monitor.py           # 串口透传 (pyserial)
+│   ├── mic_plot.py                 # ADC 原始波形可视化 (matplotlib)
+│   ├── sim_main.py                 # 全流程算法仿真, 输出 8 张图
+│   └── snore_py.py                 # Python 版鼾声算法
 └── [外部依赖, 需用户自己下载]
-    ├── Drivers/STM32F1xx_HAL_Driver/   # STM32Cube_FW_F1 V1.8.6 HAL
+    ├── Drivers/STM32F1xx_HAL_Driver/   # STM32Cube_FW_F1 V1.8.x HAL
     └── CMSIS/                          # CMSIS Device/CMSIS Core
 
 # 引脚冲突检查 ✅ (论文第三章硬件设计表 3.x 对应)

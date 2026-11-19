@@ -107,7 +107,16 @@ void APP_Console(void)
        注意: 单元测试 '4' / 'a' 会用临时缓冲重新初始化 mic,
        所以这里必须把缓冲重新绑定回主循环的 s_mic_ring, 否则读的是已经失效的栈内存。 */
     MIC_Init(MIC_ADC_HANDLE, s_mic_ring, MIC_RING_LEN);
-    HAL_ADC_Start_DMA(MIC_ADC_HANDLE, (uint32_t *)s_mic_ring, MIC_RING_LEN);
+
+    /* 兜底: 若 CubeMX 里忘了勾 DMA1 Channel1 中断, 这里显式打开。
+       没有这个中断, HAL_ADC_ConvHalfCpltCallback/ConvCpltCallback 永远不会触发,
+       现象就是「麦克风读数一直不变」。 */
+    HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+
+    if (HAL_ADC_Start_DMA(MIC_ADC_HANDLE, (uint32_t *)s_mic_ring, MIC_RING_LEN) != HAL_OK) {
+        printf("WARN: ADC-DMA 启动失败! 检查 DMA1_Channel1 是否为 Circular、ADC 触发是否为 TIM2 TRGO\r\n");
+    }
     HAL_TIM_Base_Start(&htim2);
 
     /* 进入主循环前给屏幕一个明确的就绪提示 */
@@ -152,7 +161,9 @@ void APP_Loop(void)
                      (unsigned long)(FUSION_GetSupineHoldMs() / 1000U));
             OLED_DrawString(0, 16, buf);
         } else if (page == 1) {
-            snprintf(buf, sizeof(buf), "Angle: %.1f deg", SERVO_GetCurrentAngle());
+            char s_ang[10];
+            fmt_f(s_ang, sizeof(s_ang), SERVO_GetCurrentAngle(), 1);
+            snprintf(buf, sizeof(buf), "Angle: %s deg", s_ang);
             OLED_DrawString(0, 0, buf);
         } else {
             snprintf(buf, sizeof(buf), "Snore : %lu",
@@ -173,10 +184,12 @@ void APP_Loop(void)
     {
         uint8_t ch = 0;
         if (HAL_UART_Receive(DBG_UART_HANDLE, &ch, 1, 0) == HAL_OK && ch == 's') {
-            printf("snore=%d supine=%d angle=%.1f\r\n",
+            char s_ang[10];
+            fmt_f(s_ang, sizeof(s_ang), SERVO_GetCurrentAngle(), 1);
+            printf("snore=%d supine=%d angle=%s\r\n",
                    SNORE_Algo_IsSnoring(),
                    POSTURE_Algo_IsSupine(),
-                   SERVO_GetCurrentAngle());
+                   s_ang);
         }
     }
 }

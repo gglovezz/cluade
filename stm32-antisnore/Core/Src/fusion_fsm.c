@@ -3,17 +3,22 @@
  * @brief   声音+体位融合触发状态机 —— 实现 "双条件 ≥3s → 渐进干预 → 静默观察 → 冷却" 完整闭环
  *
  * @note    依赖 snore_algo.h / posture_algo.h / servo.h / flash_store.h
- *          主循环节拍: 5ms (由 HAL_Delay(5) 保证)
+ *          计时使用 HAL_GetTick() 的真实毫秒差, 不再假设主循环严格 5ms。
+ *          这样即使 OLED 刷新或串口打印让某一轮变慢, 3s/15s/5s 仍然准确。
  */
 #include "fusion_fsm.h"
 #include "snore_algo.h"
 #include "posture_algo.h"
 #include "servo.h"
 #include "flash_store.h"
+#include "pinout.h"
+#include "stm32f1xx_hal.h"
 #include <stdio.h>
 
-/* 主循环节拍 (由 main.c HAL_Delay 决定) */
-#define FSM_TICK_MS     5U
+/* 单次 Tick 允许累计的最大时间间隔 (ms)。
+ * 若主循环被长时间阻塞(例如首次刷屏、串口大量打印), 用 250ms 上限代替真实差值,
+ * 避免计时器一次性跳过整个 3s 窗口。 */
+#define FSM_DT_MAX_MS   250U
 
 /* 舵机基准: SG90 中位 90° = 支撑片水平; 干预抬升至 105° (中位 +15°) */
 #define SERVO_NEUTRAL_DEG   90.0f
@@ -26,6 +31,7 @@ static uint32_t      supine_hold_ms = 0;    /* 仰卧连续保持时间 */
 static uint32_t      state_ms      = 0;     /* 当前状态已持续时间 */
 static uint32_t      intervene_cnt = 0;     /* 累计干预次数 */
 static float         round_max_deg = SERVO_NEUTRAL_DEG; /* 本轮达到的最大角度 */
+static uint32_t      last_tick_ms  = 0;     /* 上一次 Tick 的 HAL_GetTick() */
 
 /* ============ 字符串映射 (调试用) ============ */
 const char *FUSION_StateName(FusionState_t s) {
@@ -47,11 +53,18 @@ void FUSION_Init(void) {
     state_ms      = 0;
     intervene_cnt = 0;
     round_max_deg = SERVO_NEUTRAL_DEG;
+    last_tick_ms  = HAL_GetTick();
 }
 
-/* ============ 主 Tick (5ms 一次) ============ */
+/* ============ 主 Tick (每个主循环调用一次) ============ */
 void FUSION_Tick(void) {
     static uint8_t printed_state = 0;
+
+    /* 用真实毫秒差计时, 主循环抖动不会累积成误差 */
+    uint32_t now = HAL_GetTick();
+    uint32_t dt  = now - last_tick_ms;
+    last_tick_ms = now;
+    if (dt > FSM_DT_MAX_MS) dt = FSM_DT_MAX_MS;
 
     int snore_now = SNORE_Algo_IsSnoring();     /* 1=当前判定打鼾 */
     int supine_now = POSTURE_Algo_IsSupine();   /* 1=当前判定仰卧 */
@@ -59,19 +72,19 @@ void FUSION_Tick(void) {
     /* ------ 条件持续计时 (独立运行, 不依赖状态) ------ */
     if (snore_now) {
         if (snore_hold_ms < FUSION_HOLD_MS + 1000U)    /* 封顶避免溢出 */
-            snore_hold_ms += FSM_TICK_MS;
+            snore_hold_ms += dt;
     } else {
         snore_hold_ms = 0;                              /* 条件消失立即清零 */
     }
 
     if (supine_now) {
         if (supine_hold_ms < FUSION_HOLD_MS + 1000U)
-            supine_hold_ms += FSM_TICK_MS;
+            supine_hold_ms += dt;
     } else {
         supine_hold_ms = 0;
     }
 
-    state_ms += FSM_TICK_MS;
+    state_ms += dt;
 
     /* ------ 状态机转换 ------ */
     switch (fsm_state) {
@@ -123,8 +136,10 @@ void FUSION_Tick(void) {
             if (next > SERVO_MAX_DEG) next = SERVO_MAX_DEG;
             SERVO_SetAngle(next);
             if (next > round_max_deg) round_max_deg = next;
-            printf("[FUSION] 步进 -> %.1f° (相对中位 +%.1f°)\r\n",
-                   next, next - SERVO_NEUTRAL_DEG);
+            char s1[8], s2[8];
+            fmt_f(s1, sizeof(s1), next, 1);
+            fmt_f(s2, sizeof(s2), next - SERVO_NEUTRAL_DEG, 1);
+            printf("[FUSION] 步进 -> %s° (相对中位 +%s°)\r\n", s1, s2);
         }
 
         /* 无论是否步进, 都进入 15s 静默观察窗口 */
@@ -146,14 +161,16 @@ void FUSION_Tick(void) {
                 } else {
                     /* 已达上限 105° → 保持角度, 继续观察, 不回落 */
                     state_ms = 0;
-                    printf("[FUSION] 已到上限 %.1f°, 保持并继续观察\r\n", SERVO_MAX_DEG);
+                    printf("[FUSION] 已到上限 %d°, 保持并继续观察\r\n", (int)SERVO_MAX_DEG);
                 }
             } else {
                 /* 条件消失 → 记录本轮最大抬升角, 舵机回中位 */
                 float lift = round_max_deg - SERVO_NEUTRAL_DEG;
                 FLASH_Store_InterveneEvent(lift);
                 SERVO_SetAngle(SERVO_NEUTRAL_DEG);
-                printf("[FUSION] OBSERVE->COOLDOWN: 本轮结束 (最大抬升 %.1f°), 舵机回中位 90°\r\n", lift);
+                char s_lift[8];
+                fmt_f(s_lift, sizeof(s_lift), lift, 1);
+                printf("[FUSION] OBSERVE->COOLDOWN: 本轮结束 (最大抬升 %s°), 舵机回中位 90°\r\n", s_lift);
                 fsm_state = FSM_COOLDOWN;
                 state_ms  = 0;
             }
