@@ -1,0 +1,39 @@
+digraph SmartPillow {
+  rankdir=LR;
+  nodesep=0.5; ranksep=0.9;
+  node [shape=box, style="rounded,filled", fillcolor="#E5F0FF", fontsize=14, margin="0.4,0.25"];
+  edge [fontsize=11, penwidth=1.2];
+
+  subgraph cluster_core {
+    label="主控"; color="#3C78D8"; fontcolor="#3C78D8";
+    MCU [label="STM32F103C8T6\n48Pin LQFP\n72MHz Cortex-M3", fillcolor="#C6D9FF"];
+  }
+
+  subgraph cluster_sens {
+    label="感知层"; color="#3C78D8"; fontcolor="#3C78D8";
+    MIC  [label="MAX4466 驻极体\n声音采集\nPA0 / ADC1_IN0", fillcolor="#FFF2CC"];
+    MPU  [label="MPU6050\n六轴加速度+陀螺仪\nPB6(SCL) PB7(SDA)", fillcolor="#FFF2CC"];
+  }
+
+  subgraph cluster_exec {
+    label="执行与显示"; color="#3C78D8"; fontcolor="#3C78D8";
+    SRV  [label="SG90 舵机\nPWM 50Hz\nPA8 / TIM1_CH1", fillcolor="#FFE6CC"];
+    OLED [label="SSD1306 OLED\n128×64 I²C 0x3C\nPB10(SCL) PB11(SDA)", fillcolor="#FFE6CC"];
+    UART [label="USART1 调试口\nPA9(TX) PA10(RX)\n115200bps", fillcolor="#FFE6CC"];
+  }
+
+  subgraph cluster_pwr {
+    label="电源"; color="#3C78D8"; fontcolor="#3C78D8";
+    USB  [label="USB 5V 输入", fillcolor="#D5E8D4"];
+    LDO  [label="AMS1117-3.3\n5V→3.3V", fillcolor="#D5E8D4"];
+  }
+
+  MIC  -> MCU  [label="模拟音频", color="#4A86E8"];
+  MPU  -> MCU  [label="I²C1 400kHz", color="#4A86E8"];
+  MCU  -> SRV  [label="PWM 50Hz", color="#E06666"];
+  MCU  -> OLED [label="I²C2", color="#E06666"];
+  MCU  -> UART [label="TX/RX", color="#E06666"];
+
+  USB  -> LDO; LDO -> MCU; LDO -> MPU; LDO -> OLED;
+  USB  -> SRV [label="直接 5V\n(舵机 1000μF 去耦)", style=dashed];
+}
