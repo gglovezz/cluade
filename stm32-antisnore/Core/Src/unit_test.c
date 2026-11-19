@@ -71,9 +71,14 @@ int UT_Test_Servo(void) {
 int UT_Test_Microphone(void) {
     printf("\r\n==== Mic Unit Test ====\r\n");
     printf("  准备 ADC-DMA 采样 2 秒, 请对着麦克风说话\r\n");
+
+    /* 单元测试独占 ADC: 若主循环的 DMA 已启动, 先停掉, 否则 Start_DMA 返回 BUSY */
+    HAL_ADC_Stop_DMA(MIC_ADC_HANDLE);
+
     uint16_t ring[MIC_RING_LEN];
     MIC_Init(MIC_ADC_HANDLE, ring, MIC_RING_LEN);
     HAL_ADC_Start_DMA(MIC_ADC_HANDLE, (uint32_t*)ring, MIC_RING_LEN);
+    HAL_TIM_Base_Start(&htim2);          /* 触发源必须先跑起来 */
     HAL_Delay(2000);
     uint16_t min=0xFFFF, max=0;
     uint32_t sum=0;
@@ -82,6 +87,9 @@ int UT_Test_Microphone(void) {
         if (ring[i]>max) max=ring[i];
         sum += ring[i];
     }
+    /* 采完立即停掉, 避免 DMA 继续写入已出栈的局部数组 */
+    HAL_ADC_Stop_DMA(MIC_ADC_HANDLE);
+
     printf("  min=%u max=%u avg=%u (12bit, 基线≈2048)\r\n", min, max, (unsigned)(sum/MIC_RING_LEN));
     printf("  pk-pk = %u (越接近 4095 越饱满; 0 表示音频输入异常)\r\n", max-min);
     if ((max-min) < 50) { printf("WARN: pk-pk 太小, 检查 MAX4466 增益/电源/接线\r\n"); return -1; }

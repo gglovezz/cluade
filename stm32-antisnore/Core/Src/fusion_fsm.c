@@ -10,9 +10,14 @@
 #include "posture_algo.h"
 #include "servo.h"
 #include "flash_store.h"
+#include <stdio.h>
 
 /* 主循环节拍 (由 main.c HAL_Delay 决定) */
 #define FSM_TICK_MS     5U
+
+/* 舵机基准: SG90 中位 90° = 支撑片水平; 干预抬升至 105° (中位 +15°) */
+#define SERVO_NEUTRAL_DEG   90.0f
+#define SERVO_MAX_DEG       (SERVO_NEUTRAL_DEG + FUSION_MAX_ANGLE_DEG)
 
 /* ============ 内部状态 ============ */
 static FusionState_t fsm_state     = FSM_IDLE;
@@ -20,7 +25,7 @@ static uint32_t      snore_hold_ms = 0;     /* 鼾声连续保持时间 */
 static uint32_t      supine_hold_ms = 0;    /* 仰卧连续保持时间 */
 static uint32_t      state_ms      = 0;     /* 当前状态已持续时间 */
 static uint32_t      intervene_cnt = 0;     /* 累计干预次数 */
-static uint8_t       stepped_this_round = 0;/* 本轮干预是否已步进过 */
+static float         round_max_deg = SERVO_NEUTRAL_DEG; /* 本轮达到的最大角度 */
 
 /* ============ 字符串映射 (调试用) ============ */
 const char *FUSION_StateName(FusionState_t s) {
@@ -41,7 +46,7 @@ void FUSION_Init(void) {
     supine_hold_ms = 0;
     state_ms      = 0;
     intervene_cnt = 0;
-    stepped_this_round = 0;
+    round_max_deg = SERVO_NEUTRAL_DEG;
 }
 
 /* ============ 主 Tick (5ms 一次) ============ */
@@ -76,7 +81,8 @@ void FUSION_Tick(void) {
         if (snore_hold_ms >= FUSION_HOLD_MS && supine_hold_ms >= FUSION_HOLD_MS) {
             fsm_state = FSM_ARMED;
             state_ms  = 0;
-            printf("[FUSION] ARMED: snore=%lums supine=%lums\n", snore_hold_ms, supine_hold_ms);
+            printf("[FUSION] ARMED: snore=%lums supine=%lums\n",
+                   (unsigned long)snore_hold_ms, (unsigned long)supine_hold_ms);
         }
         break;
 
@@ -89,43 +95,41 @@ void FUSION_Tick(void) {
             printf("[FUSION] ARMED->IDLE: 条件丢失\n");
             break;
         }
-        /* 进入干预 */
+        /* 进入干预: 记录一轮的起点, 累计一次鼾声事件与一轮干预 */
+        round_max_deg = SERVO_NEUTRAL_DEG;
+        intervene_cnt++;
+        FLASH_Store_SnoreEvent();
         fsm_state = FSM_INTERVENE;
         state_ms  = 0;
-        stepped_this_round = 0;
-        intervene_cnt++;
-        printf("[FUSION] -> INTERVENE (干预 #%lu)\n", intervene_cnt);
+        printf("[FUSION] -> INTERVENE (干预 #%lu)\r\n", (unsigned long)intervene_cnt);
         /* fall through — 立即执行第一次步进 */
 
-    /* ---- INTERVENE: 渐进干预, 每次 +2°, 达 15° 或条件消失进入 OBSERVE ---- */
+    /* ---- INTERVENE: 抬升 2° 后立刻转入 OBSERVE 静默观察 ---- */
     case FSM_INTERVENE: {
         float cur = SERVO_GetCurrentAngle();
 
-        /* 条件消失 → 提前结束干预进入 OBSERVE */
+        /* 条件在干预瞬间消失 → 不动作, 直接观察 */
         if (snore_hold_ms < FUSION_HOLD_MS / 2U || supine_hold_ms < FUSION_HOLD_MS / 2U) {
             printf("[FUSION] INTERVENE->OBSERVE: 条件消失 (snore=%lu supine=%lu)\n",
-                   snore_hold_ms, supine_hold_ms);
+                   (unsigned long)snore_hold_ms, (unsigned long)supine_hold_ms);
             fsm_state = FSM_OBSERVE;
             state_ms  = 0;
             break;
         }
 
-        /* 还没到最大角度 → 再步进一次 */
-        if (cur < FUSION_MAX_ANGLE_DEG - 0.5f && stepped_this_round == 0) {
+        /* 每次只抬 2°, 不超上限 105° (中位 90° + 15°) */
+        if (cur < SERVO_MAX_DEG - 0.5f) {
             float next = cur + FUSION_STEP_DEG;
-            if (next > FUSION_MAX_ANGLE_DEG) next = FUSION_MAX_ANGLE_DEG;
+            if (next > SERVO_MAX_DEG) next = SERVO_MAX_DEG;
             SERVO_SetAngle(next);
-            stepped_this_round = 1;
-            FLASH_Store_SnoreEvent();
-            printf("[FUSION] 步进 -> %.1f° (snore=%d supine=%d)\n", next, snore_now, supine_now);
+            if (next > round_max_deg) round_max_deg = next;
+            printf("[FUSION] 步进 -> %.1f° (相对中位 +%.1f°)\r\n",
+                   next, next - SERVO_NEUTRAL_DEG);
         }
 
-        /* 到达最大角度 → 进入 OBSERVE 静默窗口 */
-        if (cur >= FUSION_MAX_ANGLE_DEG - 0.5f) {
-            printf("[FUSION] INTERVENE->OBSERVE: 达到最大角度 %.1f°\n", cur);
-            fsm_state = FSM_OBSERVE;
-            state_ms  = 0;
-        }
+        /* 无论是否步进, 都进入 15s 静默观察窗口 */
+        fsm_state = FSM_OBSERVE;
+        state_ms  = 0;
         break;
     }
 
@@ -133,20 +137,23 @@ void FUSION_Tick(void) {
     case FSM_OBSERVE:
         /* 静默窗口到 */
         if (state_ms >= FUSION_OBSERVE_MS) {
-            /* 条件还在 → 再一轮渐进干预 (如果还没到最大角) */
-            if (snore_hold_ms >= FUSION_HOLD_MS &&
-                supine_hold_ms >= FUSION_HOLD_MS &&
-                SERVO_GetCurrentAngle() < FUSION_MAX_ANGLE_DEG - 0.5f) {
-                fsm_state = FSM_INTERVENE;
-                state_ms  = 0;
-                stepped_this_round = 0;
-                printf("[FUSION] OBSERVE->INTERVENE: 条件仍满足, 继续干预\n");
+            if (snore_hold_ms >= FUSION_HOLD_MS && supine_hold_ms >= FUSION_HOLD_MS) {
+                if (SERVO_GetCurrentAngle() < SERVO_MAX_DEG - 0.5f) {
+                    /* 条件仍满足且未到上限 → 再抬 2° */
+                    fsm_state = FSM_INTERVENE;
+                    state_ms  = 0;
+                    printf("[FUSION] OBSERVE->INTERVENE: 条件仍满足, 继续抬升\r\n");
+                } else {
+                    /* 已达上限 105° → 保持角度, 继续观察, 不回落 */
+                    state_ms = 0;
+                    printf("[FUSION] 已到上限 %.1f°, 保持并继续观察\r\n", SERVO_MAX_DEG);
+                }
             } else {
-                /* 条件消失 OR 已达最大角 → 舵机回位 + COOLDOWN */
-                float max_a = SERVO_GetMaxAngleReached();
-                FLASH_Store_InterveneEvent(max_a);
-                SERVO_SetAngle(0.0f);
-                printf("[FUSION] OBSERVE->COOLDOWN: 本轮结束 (max=%.1f°), 舵机回 0°\n", max_a);
+                /* 条件消失 → 记录本轮最大抬升角, 舵机回中位 */
+                float lift = round_max_deg - SERVO_NEUTRAL_DEG;
+                FLASH_Store_InterveneEvent(lift);
+                SERVO_SetAngle(SERVO_NEUTRAL_DEG);
+                printf("[FUSION] OBSERVE->COOLDOWN: 本轮结束 (最大抬升 %.1f°), 舵机回中位 90°\r\n", lift);
                 fsm_state = FSM_COOLDOWN;
                 state_ms  = 0;
             }

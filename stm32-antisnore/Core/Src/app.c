@@ -71,8 +71,10 @@ void APP_Init(void)
     POSTURE_Algo_Init();
     FUSION_Init();
 
-    /* 启动 ADC-DMA 连续采样 (TIM2 TRGO 触发, 8kHz) */
-    HAL_ADC_Start_DMA(MIC_ADC_HANDLE, (uint32_t *)s_mic_ring, MIC_RING_LEN);
+    /* ADC 校准 (F1 系列必须做, 否则零点漂移)
+       注意: 此处只校准不启动采样 —— 串口菜单里的麦克风单元测试要独占 ADC,
+             等用户输入 'r' 进入主循环时再统一启动 DMA 与 TIM2。 */
+    HAL_ADCEx_Calibration_Start(MIC_ADC_HANDLE);
 
     /* 上电提示 */
     printf("\r\n========== 智能止鼾枕 启动 ==========\r\n");
@@ -100,6 +102,18 @@ void APP_Console(void)
         }
     }
     printf("系统就绪, 进入主循环\r\n");
+
+    /* 从这里开始才启动麦克风采样。
+       注意: 单元测试 '4' / 'a' 会用临时缓冲重新初始化 mic,
+       所以这里必须把缓冲重新绑定回主循环的 s_mic_ring, 否则读的是已经失效的栈内存。 */
+    MIC_Init(MIC_ADC_HANDLE, s_mic_ring, MIC_RING_LEN);
+    HAL_ADC_Start_DMA(MIC_ADC_HANDLE, (uint32_t *)s_mic_ring, MIC_RING_LEN);
+    HAL_TIM_Base_Start(&htim2);
+
+    /* 进入主循环前给屏幕一个明确的就绪提示 */
+    OLED_Clear();
+    OLED_DrawString(0, 0, "System Ready");
+    OLED_Update();
 }
 
 /* ============ 主循环体 (5ms 节拍) ============ */

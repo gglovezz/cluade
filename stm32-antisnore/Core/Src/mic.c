@@ -19,7 +19,8 @@ void MIC_Init(ADC_HandleTypeDef *hadc, volatile uint16_t *ring, uint32_t ring_le
     g_mic.len = ring_len;
     g_mic.w_idx = 0;
     g_mic.frame_rdy = 0;
-    s_read_half = 0;
+    /* 初值 1: 第一次回调(半传输)时翻转为 0, 正好读取刚填满的前半区 [0,256) */
+    s_read_half = 1;
     /* 由 app.c 里 HAL_ADC_Start_DMA(hadc, (uint32_t*)ring, ring_len) 启动 */
 }
 
