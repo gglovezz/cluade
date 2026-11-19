@@ -152,6 +152,21 @@ const body = {
     bullet(`绝对不能在通电状态下插拔杜邦线（先断电，改完线，量完电压，再上电）。`),
     note(`每次上电前，用万用表蜂鸣档量三组：5V—GND、3.3V—GND、5V—3.3V。前两组不响（不短路）才可上电；第三组响说明电源短路，必须查线。`),
 
+    h2(`0.4 名词速查（看不懂时回来查）`),
+    table([1500, 4200], [`名词`, `一句话解释`], [
+      [`GPIO`, `单片机的普通输入/输出引脚，可输出高/低电平`],
+      [`ADC`, `模拟量转数字量。麦克风输出连续电压，ADC 把它变成 0—4095 的数字`],
+      [`DMA`, `不经过 CPU、由硬件自动搬运数据的通道，保证 8kHz 采样不丢点`],
+      [`I²C`, `两根线（SCL 时钟、SDA 数据）连接多个芯片的总线，本工程接 OLED 与 MPU6050`],
+      [`PWM`, `用高低电平的占空比模拟“中间电压”，舵机靠 50Hz PWM 的脉宽定位`],
+      [`HAL`, `ST 官方硬件抽象库，把寄存器操作封装成 HAL_xxx() 函数`],
+      [`中断 / 回调`, `硬件事件发生时自动跳去执行的函数，如 DMA 传完一半数据`],
+      [`上拉`, `用电阻把信号线默认拉到 3.3V，I²C 总线必须上拉才能通信`],
+      [`共地`, `所有模块的 GND 连在一起，否则信号没有共同参考点`],
+      [`FSM`, `有限状态机，本工程用它描述 待机→待触发→干预→观察→冷却 的流程`],
+    ]),
+    cap(`表 0-3 名词速查`),
+
     /* ---------- 第 1 章 ---------- */
     h1(`第 1 章 物料采购`),
     h2(`1.1 采购清单`),
@@ -198,7 +213,19 @@ USB 转 TTL CH340 ×1
 
     /* ---------- 第 2 章 ---------- */
     h1(`第 2 章 软件安装（每一步都可验证）`),
-    p(`按顺序安装 5 个软件。每个小节末尾都有「怎么确认装好了」，不通过就不要进入下一节。`),
+    p(`按顺序安装下列软件。每个小节末尾都有「怎么确认装好了」，不通过就不要进入下一节。`),
+    h2(`2.0 下载入口（可直接复制到浏览器）`),
+    table([1900, 4600], [`软件`, `地址`], [
+      [`STM32CubeMX`, `https://www.st.com/en/development-tools/stm32cubemx.html`],
+      [`Keil MDK-ARM`, `https://www.keil.com/download/product/`],
+      [`STM32F1xx_DFP`, `https://www.keil.arm.com/packs/ （搜 STM32F1xx_DFP）`],
+      [`ARM Compiler 5`, `https://developer.arm.com/ （搜 Arm Compiler 5，或 Keil 官网 Legacy）`],
+      [`ST-Link 驱动`, `https://www.st.com/en/development-tools/stsw-link009.html`],
+      [`STM32CubeProgrammer`, `https://www.st.com/en/development-tools/stm32cubeprog.html`],
+      [`CH340 驱动`, `https://www.wch.cn/downloads/CH341SER_EXE.html`],
+    ]),
+    cap(`表 2-0 软件下载入口`),
+    note(`ST 官网需要注册 myST 账号才能下载，建议先在 2.1 之前注册好。所有安装路径都不能含中文和空格，这是后面 90% 怪问题的根源。`),
     table([1700, 1300, 2100, 1700], [`软件`, `版本`, `用途`, `下载入口`], [
       [`STM32CubeMX`, `6.8—6.14`, `配外设、生成 Keil 工程`, `st.com → STM32CubeMX`],
       [`Keil MDK-ARM`, `5.36—5.38`, `编译 / 下载 / 调试`, `keil.com → MDK-Arm`],
@@ -217,6 +244,7 @@ USB 转 TTL CH340 ×1
       `菜单 Help → Manage embedded software packages → 展开 STM32F1 → 选 STM32Cube FW_F1 V1.8.x → Install，等待下载完成（约 200MB）。`,
       `确认：新建工程时能在 Part Number 里搜到 STM32F103C8Tx。`,
     ]),
+    note(`若新建工程时弹窗提示 “the firmware package is not installed” 或点 GENERATE CODE 报缺 .c 文件，说明第 4 步没装完。重新打开 Manage embedded software packages，确认 STM32Cube FW_F1 前面的圆点变成绿色实心。`),
 
     h2(`2.2 Keil MDK-ARM`),
     ...stepList([
@@ -238,18 +266,20 @@ USB 转 TTL CH340 ×1
 
     h2(`2.3 ST-Link 驱动`),
     ...stepList([
-      `下载 STSW-LINK009，解压后右键 dpinst_amd64.exe → 以管理员身份运行。`,
-      `插入 ST-Link，打开设备管理器，应出现 STMicroelectronics → STLink dongle（无黄色感叹号）。`,
-      `若显示未知设备：右键 → 更新驱动程序 → 浏览计算机 → 指向解压目录。`,
-      `确认：STM32CubeProgrammer 能 Connect 到芯片（见第 6 章）。`,
+      `下载 STSW-LINK009，解压后右键 dpinst_amd64.exe → 以管理员身份运行（32 位系统用 dpinst_x86.exe）。`,
+      `插入 ST-Link。按 Win+X → 设备管理器；Win11 也可右键开始菜单 → 设备管理器。`,
+      `展开“通用串行总线设备”，应出现 STMicroelectronics STLink dongle；若有黄色感叹号说明驱动没装好。`,
+      `有感叹号时：右键该设备 → 更新驱动程序 → 浏览我的电脑 → 指向解压出来的 STSW-LINK009 目录 → 下一步。`,
+      `确认：设备管理器里没有任何黄色感叹号，且插拔 ST-Link 时该设备会消失/出现。`,
     ]),
 
     h2(`2.4 CH340 驱动`),
     ...stepList([
-      `wch.cn 下载中心搜索 CH341SER，下载 CH341SER.EXE，管理员运行安装。`,
-      `插入 USB 转 TTL，设备管理器 → 端口（COM 和 LPT）出现 USB-SERIAL CH340 (COMx)。`,
-      `记下这个 COM 号（例如 COM5），后面串口助手要用。`,
-      `确认：拔插模块时该 COM 口会消失/重现。`,
+      `wch.cn 下载中心搜索 CH341SER，下载 CH341SER.EXE，右键以管理员身份运行，点“安装”。`,
+      `插入 USB 转 TTL，按 Win+X → 设备管理器 → 展开“端口（COM 和 LPT）”，出现 USB-SERIAL CH340 (COMx)。`,
+      `记下这个 COM 号（例如 COM5）。拔掉再插，COM 号通常会变，每次换 USB 口都要重新确认。`,
+      `若显示黄色感叹号：右键 → 卸载设备 → 勾“删除此设备的驱动程序软件” → 重新插拔 → 重装驱动。`,
+      `若端口被占用（串口助手提示“串口已被打开”）：关掉其它串口软件、Keil 的 Debug 会话、Arduino IDE 等。`,
     ]),
 
     h2(`2.5 串口助手与 Python（可选）`),
@@ -258,7 +288,17 @@ USB 转 TTL CH340 ×1
       `（可选）安装 Python 3.9+，安装时勾选 Add python.exe to PATH；命令行执行 pip install pyserial matplotlib numpy。`,
     ]),
 
-    h2(`2.6 软件自检表`),
+    h2(`2.6 STM32CubeProgrammer（强烈建议装）`),
+    p(`它用于三件事：确认芯片被识别、解除读保护、在 Keil 下载失败时做全片擦除。体积约 200MB，安装一路默认即可。`),
+    ...stepList([
+      `st.com 搜索 STM32CubeProgrammer，下载 Windows 版并安装（需要 myST 账号）。`,
+      `打开后右上角选 ST-LINK，Port 选 SWD，点 Connect。`,
+      `能读出 Device: STM32F103C8、Flash size 64KBytes，说明下载链路完全正常。`,
+      `若提示读保护：点左侧 OB（Option Bytes）→ Read Out Protection 选 AA → Apply，即可解除。`,
+    ]),
+    note(`不需要 CubeProgrammer 也能下载程序，但遇到“Cannot access target”“Flash Download failed”时，它是唯一能救回芯片的工具，建议提前装好。`),
+
+    h2(`2.7 软件自检表`),
     table([5200, 1100], [`检查项`, `打勾`], [
       [`CubeMX 能新建工程并搜到 STM32F103C8Tx`, `□`],
       [`CubeMX 的 F1 固件包已 Installed`, `□`],
@@ -282,11 +322,13 @@ USB 转 TTL CH340 ×1
         │        用母对母杜邦线引出如下信号            │
         │                                            │
         PA0  ──→ MAX4466 OUT      PB6/PB7  ──→ MPU6050 SCL/SDA
-        PB10/PB11 ──→ OLED SCL/SDA PA8      ──→ SG90 橙线
-        PA9/PA10  ──→ CH340 RXD/TXD  PA13/PA14 ──→ ST-Link SWDIO/SWCLK
+        PB10/PB11 ──→ OLED SCL/SDA PA8     ──→ SG90 橙线
+        PA9  ──→ CH340 RXD        PA10     ──→ CH340 TXD   (TX/RX 必须交叉)
+        PA13/PA14 ──→ ST-Link SWDIO/SWCLK
         │                                            │
 下轨：  5V(+)  ──────── SG90 红线(独立适配器)   GND(-) ── 与上轨 GND 连通`),
     note(`上轨 3.3V 由 Blue Pill 的 3.3V 引脚提供；下轨 5V 由 5V 2A 适配器提供。两套电源的 GND 必须连通——这是全系统唯一必须「共地」的地方。`),
+    note(`整板只能有一个 5V 来源。CH340 的 5V、Micro USB、ST-Link 的 3.3V 三者最多同时用一个；两个 5V 同时接会互相倒灌，轻则下载器发烫，重则烧稳压芯片。`, `FFF0F0`),
 
     h2(`3.2 完整接线表`),
     table([1100, 1400, 1500, 2900], [`模块`, `模块引脚`, `STM32 引脚`, `说明`], [
@@ -321,7 +363,9 @@ USB 转 TTL CH340 ×1
     h3(`Step 1：只接供电`),
     ...stepList([
       `Blue Pill 上两个跳线帽 BOOT0、BOOT1 都插在 0 侧（靠近板边标 0 的一端）。`,
-      `CH340 的 5V 接 Blue Pill 的 5V，GND 接 GND；CH340 插入电脑。`,
+      `CH340 模块上通常有一个 3V3/5V 跳线帽，确认它插在 5V 档（否则 5V 引脚没有输出）。`,
+      `CH340 的 5V 接 Blue Pill 的 5V（标着 5V 的排针，不是 3.3V），GND 接 GND；CH340 插入电脑。`,
+      `此时 Micro USB 口不要插线，避免两个 5V 同时供电。`,
       `上电后电源 LED 常亮。万用表直流 20V 档，红表笔点 Blue Pill 的 3.3V 排针，黑表笔点 GND：读数应在 3.25—3.35V。`,
       `若读数 < 3.1V 或板子发烫，立刻断电，检查 5V 与 3.3V 是否接反、模块是否短路。`,
     ]),
@@ -329,7 +373,7 @@ USB 转 TTL CH340 ×1
     ...stepList([
       `只接 SWDIO→PA13、SWCLK→PA14、GND→GND（主板已由 CH340 供电，3.3V 可不接）。`,
       `打开 STM32CubeProgrammer，右上角选 ST-LINK，Port 选 SWD，点 Connect。`,
-      `正常显示 Device: STM32F103C8，Flash Size 64KBytes。识别不到不要往下做，查第 9 章第 1—3 条。`,
+      `正常显示 Device: STM32F103C8，Flash Size 64KBytes。识别不到不要往下做，查第 10 章 10.2 节前三条。`,
     ]),
     h3(`Step 3：接 OLED`),
     ...stepList([
@@ -364,6 +408,19 @@ USB 转 TTL CH340 ×1
     h2(`3.5 I2C 上拉电阻要不要加`),
     p(`GY-521 模块板上已带 4.7kΩ 上拉到 3.3V，常见 4 针 OLED 模块也自带 10kΩ 上拉，因此本工程通常不需要外接电阻。只有出现「OLED 或 MPU6050 时好时坏、示波器看 SDA 上升沿很缓」时，才在 SCL/SDA 与 3.3V 之间各加一个 4.7kΩ。`),
 
+    h2(`3.6 上电后 30 秒体检（不用写代码）`),
+    p(`接完线、程序还没下载时，就可以用万用表判断 80% 的接线错误。下表全部是直流电压档对 GND 测量：`),
+    table([1900, 1500, 2900], [`测量点`, `正常值`, `异常说明`], [
+      [`3.3V 排针`, `3.25—3.35V`, `偏低：供电不足或某模块短路`],
+      [`PB6、PB7（I2C1）`, `静态约 3.3V`, `0V：该线对地短路或模块未上电`],
+      [`PB10、PB11（I2C2）`, `静态约 3.3V`, `同上；若只有 1.5V 说明上拉不足`],
+      [`PA0（麦克风输出）`, `1.4—1.8V`, `0V 或 3.3V：模块没供电/输出饱和`],
+      [`PA8（舵机信号）`, `90° 时约 0.25V`, `0V：程序未运行或 TIM1 未启动`],
+      [`舵机 5V 轨`, `4.75—5.25V`, `低于 4.5V：适配器功率不够`],
+    ]),
+    cap(`表 3-2 上电体检表`),
+    note(`PA8 的平均电压 = 3.3V × 脉宽 / 20ms。90° 时脉宽 1.5ms，所以约 0.25V；舵机转到 0° 时约 0.08V，180° 时约 0.41V。没有示波器时，用这个值就能判断 PWM 是否真的输出。`),
+
     /* ---------- 第 4 章 ---------- */
     h1(`第 4 章 STM32CubeMX 建工程（逐屏参数）`),
     p(`本章参数与工程代码严格对应。任何一项改了，代码里的引脚/时序就对不上，所以请按表填写。`),
@@ -374,6 +431,7 @@ USB 转 TTL CH340 ×1
       `弹窗 Initialize all peripherals with their default Mode? 选 No。`,
       `此时界面左侧是 Pinout & Configuration，右侧是芯片引脚图。`,
     ]),
+    note(`如果 New Project 里搜不到 STM32F103C8，或打开工程时 Keil 报 “Device not found”，都是固件包/器件包没装好，回到 2.1 第 4 步与 2.2 第 3 步。`),
     h2(`4.2 系统与时钟`),
     table([1900, 2200, 2800], [`位置`, `设置`, `说明`], [
       [`System Core → SYS`, `Debug = Serial Wire`, `不开启会锁死 SWD`],
@@ -440,6 +498,7 @@ USB 转 TTL CH340 ×1
       `Code Generator 页：勾 Copy only the necessary library files；不要勾 Generate peripheral initialization as a pair of .c/.h files（本手册按全部生成在 main.c 里说明）。`,
       `点右上角 GENERATE CODE，等进度条结束，弹窗点 Open Project，Keil 自动打开工程。`,
     ]),
+    note(`GENERATE CODE 报红：先看下方 Messages 窗口的第一条。常见是路径含中文、目标目录无写权限、或固件包缺失。改完再点一次 GENERATE CODE 即可，不需要重建工程。`),
     h2(`4.10 生成目录核对`),
     ...code(String.raw`D:\work\AntiSnore\
 ├── AntiSnore.ioc                 ← 以后改配置双击它
@@ -448,11 +507,20 @@ USB 转 TTL CH340 ×1
 ├── Drivers\     STM32F1xx_HAL_Driver\  CMSIS\
 └── MDK-ARM\     AntiSnore.uvprojx  ← Keil 工程文件`),
     note(`先按 F7 编译一次空工程，必须 0 Error 再继续。这一步只验证工具链，不涉及我们的代码。`),
+    note(`以后如果改了 .ioc 并重新生成代码，CubeMX 会重写 main.c 的外设初始化部分，但 USER CODE 区域的内容会保留。回到 Keil 直接按 F7 重新编译即可，不要手动删除工程。`),
 
     /* ---------- 第 5 章 ---------- */
     h1(`第 5 章 源码集成（最容易出错的一章）`),
     h2(`5.1 复制文件`),
-    p(`把 /workspace/stm32-antisnore 下的文件复制到 CubeMX 工程，共 21 个（10 个 .c + 11 个 .h）。main.h 与 stm32f1xx_hal_conf.h 一定要用 CubeMX 生成的，不要覆盖。`),
+    p(`把源码包里的 10 个 .c 与 11 个 .h 复制到 CubeMX 工程，共 21 个文件。main.h 与 stm32f1xx_hal_conf.h 一定要用 CubeMX 生成的，不要覆盖。`),
+    note(`动手前先把源码压缩包 stm32-antisnore_源码包.zip 解压到 D:\\work\\stm32-antisnore（不要解压到桌面、下载文件夹或含中文的路径）。本章下面提到的“左边窗口”就是解压后的这个目录。`),
+    ...stepList([
+      `打开两个资源管理器窗口：左边是 stm32-antisnore\\Core\\Inc，右边是 D:\\work\\AntiSnore\\Core\\Inc。`,
+      `在左边按住 Ctrl 选中 10 个 .h（不要选 main.h、stm32f1xx_hal_conf.h），Ctrl+C，到右边 Ctrl+V。`,
+      `若弹出“目标包含同名文件”，说明你误选了 main.h 或 stm32f1xx_hal_conf.h，点取消后重新只选我们提供的文件。`,
+      `同样把 Core\\Src 下 10 个 .c 复制到 D:\\work\\AntiSnore\\Core\\Src；遇到 main.c 一律选“跳过”。`,
+      `复制完成后数一遍：Inc 目录应比原来多 10 个 .h，Src 目录多 10 个 .c。`,
+    ]),
     ...code(String.raw`源: Core\Inc\  →  目标: AntiSnore\Core\Inc\
     app.h  pinout.h  mic.h  mpu6050.h  oled.h  servo.h
     flash_store.h  snore_algo.h  posture_algo.h  fusion_fsm.h  unit_test.h
@@ -482,6 +550,27 @@ USB 转 TTL CH340 ×1
     note(`--c99 必须加：本工程大量使用 for (int i = 0; ...) 这类 C99 写法，Keil AC5 默认 C90 会直接报错。`),
     h2(`5.4 在 main.c 里粘贴 4 段代码`),
     p(`打开 Core\\Src\\main.c，只改 CubeMX 用注释标出的 USER CODE 区域。这四段区域在重新生成代码时不会被清空。`),
+    p(`先认清 main.c 的结构（外设初始化函数的先后顺序以 CubeMX 实际生成的为准，你只需要找 USER CODE 标记）：`),
+    ...code(String.raw`int main(void)
+{
+  HAL_Init();
+  SystemClock_Config();
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_ADC1_Init();
+  MX_I2C1_Init();  MX_I2C2_Init();
+  MX_TIM1_Init();  MX_TIM2_Init();
+  MX_USART1_UART_Init();
+  /* USER CODE BEGIN 2 */      ← 粘 APP_Init(); APP_Console();
+  /* USER CODE END 2 */
+
+  while (1)
+  {
+    /* USER CODE BEGIN WHILE */ ← 粘 APP_Loop(); 的位置
+    /* USER CODE END WHILE */
+    /* USER CODE BEGIN 3 */
+  }
+}`),
     h3(`① USER CODE BEGIN Includes`),
     ...code(String.raw`/* USER CODE BEGIN Includes */
 #include "app.h"
@@ -515,8 +604,9 @@ while (1)
       `按 F7（Build），或点工具栏带箭头的 Build 图标。`,
       `底部 Build Output 窗口最后一行应为 0 Error(s), 0 Warning(s)（少量 Warning 可忽略）。`,
       `生成的文件在 MDK-ARM\\AntiSnore\\AntiSnore.hex。`,
-      `若报错，先看第 9 章「编译类报错」表，80% 是 Include Paths 或 --c99 漏了。`,
+      `若报错，先看第 10 章「编译类报错」表，80% 是 Include Paths 或 --c99 漏了。`,
     ]),
+    note(`编译成功后看 Build Output 最后一行 “Program Size: Code=xxxxx RO-data=xxxx RW-data=xxx ZI-data=xxx”。Code + RO-data 就是占用的 Flash，必须远小于 63KB（因为最后 1KB 被统计存储占用）。超过 60KB 时应把 flash_store.h 的 STATS_FLASH_BASE 改到更靠前的空闲页。`),
 
     /* ---------- 第 6 章 ---------- */
     h1(`第 6 章 烧录与首次上电`),
@@ -524,17 +614,20 @@ while (1)
     ...stepList([
       `Alt+F7 打开 Options → Debug 页，左上角下拉选 ST-Link Debugger，点右侧 Settings。`,
       `Debug 子页：Port 选 SW，Max Clock 选 1.8MHz；右侧 SW Device 应显示 IDCODE 0x1BA01477、Device Name ARM CoreSight SW-DP。`,
+      `ST-Link 与板子的四根线按丝印对应：3.3V→3.3V（可不接）、GND→GND、SWDIO→PA13、SWCLK→PA14。杜邦线颜色各厂家不同，只认丝印。`,
       `Flash Download 子页：勾 Reset and Run；Programming Algorithm 列表应含 STM32F10x Med-density Flash 128KB。没有就点 Add 添加。`,
       `Utilities 页：勾 Use Debug Driver；确认 Update Target before Debugging 勾选。`,
       `点 OK 保存，按 F8（Load）下载。`,
     ]),
     note(`下载器不要升级固件（尤其是国产克隆版 ST-Link V2），升级失败会变砖。`),
+    note(`按 F8 提示 Cannot access target 时：按住板子复位键 → 点 F8 → 看到 “Programming…” 立刻松开复位，成功率很高。仍不行就用 CubeProgrammer 全片擦除（见 2.6）。`),
     h2(`6.2 首次上电应看到什么`),
     p(`按 Blue Pill 的复位键（或重新上电），串口助手应输出：`),
     ...code(String.raw`========== 智能止鼾枕 启动 ==========
 输入: '1'=MPU自检  '2'=OLED自检  '3'=舵机自检  '4'=麦克风采样
       'a'=全部单元测试  'r'=运行主循环
 > `),
+    bullet(`先不要急着输入 r。按顺序输入 1、2、3、4，逐项确认屏幕、姿态、舵机、麦克风都正常；最后输入 a 应看到 5/5 PASS。`),
     bullet(`PB0 外接 LED 点亮，OLED 此时可能还是黑的（要等菜单里 r 之后才刷新）。`),
     bullet(`串口发送 r，打印「系统就绪, 进入主循环」，OLED 显示 System Ready，随后每 500ms 轮播 3 页。`),
     bullet(`LED 每 500ms 翻转一次，表示主循环在跑。`),
@@ -549,7 +642,8 @@ while (1)
     pKv(`失败分支：`, `LED 不亮 → 检查 LED 极性（长脚接 PB0，短脚经 1kΩ 接 GND）；常亮不闪 → 程序没进主循环，确认已输入 r。`),
 
     h2(`第 2 关：USART1`),
-    pKv(`操作：`, `串口助手选 CH340 的 COM 口，115200、8N1、无流控，打开串口；发送单个字符 s。`),
+    pKv(`操作：`, `串口助手选 CH340 的 COM 口，波特率 115200、数据位 8、停止位 1、校验 None、流控 None，打开串口；在发送框输入单个字符 s，点“发送”。`),
+    pKv(`发送设置：`, `不要勾“发送新行/加回车换行”，也不要勾“HEX 发送”；波特率下拉框必须正好是 115200，不要选 115200 之外的近似值。`),
     pKv(`预期：`, `回显 snore=0 supine=0 angle=90.0（角度初始为舵机中位）。`),
     pKv(`失败分支：`, `乱码 → 波特率或晶振配置不对；无任何输出 → TX/RX 接反（CH340 的 TXD 必须接 PA10）；只收到一次横幅后无反应 → 检查是否已输入 r。`),
 
@@ -569,6 +663,13 @@ while (1)
     pKv(`操作：`, `串口输入 4，先安静 2 秒，再对着麦克风说话。`),
     pKv(`预期：`, `打印 min/max/avg，avg 在 2048 附近；安静时 pk-pk 数十，说话时 pk-pk 大于 200 并打印 PASS。`),
     pKv(`失败分支：`, `pk-pk=0 且 avg≈0 → ADC 没转换，检查 CubeMX 的 Trigger 是否选了 Timer2 TRGO、DMA 是否 Circular；pk-pk 很小 → 拧大 MAX4466 增益电位器；avg 恒为 4095 → 接了 5V 供电导致输出饱和。`),
+    h3(`增益调节（做到这一步才算过关）`),
+    ...stepList([
+      `安静环境运行测试 4，读 pk-pk 值；用小螺丝刀缓慢顺时针拧 MAX4466 上的蓝色电位器。`,
+      `目标：安静时 pk-pk 在 100—400 之间（能看见底噪，但不饱和）。`,
+      `对着麦克风正常说话，pk-pk 应达到 1500—3500；若接近 4095 说明增益过大，回调一点。`,
+      `设定完成后不要再动电位器，否则之前记录的噪声底会失效。`,
+    ]),
 
     h2(`第 6 关：舵机（TIM1 PWM）`),
     pKv(`操作：`, `先空载（舵机不装到枕头上），串口输入 3。`),
@@ -581,14 +682,47 @@ while (1)
     pKv(`预期（OLED 第 0 页）：`, `FSM: IDLE → Snore/Sup 秒数同步增长 → 约 3 秒后 ARMED → INTERVENE，舵机从 90° 抬到 92°；之后每 15 秒再抬 2°，到 105° 后保持不再抬升。`),
     pKv(`复位验证：`, `停止鼾声或把板子侧翻（roll>25°），15 秒内 FSM 进入 OBSERVE→COOLDOWN，舵机回 90°。`),
     pKv(`失败分支：`, `一直 IDLE → 看第 0 页哪个秒数不涨，回到第 4/5 关；一放鼾声就连续抬升不观察 → 确认烧的是最新 fusion_fsm.c；误触发频繁 → 把 FUSION_HOLD_MS 从 3000 调到 5000。`),
+    pKv(`卡在 ARMED：`, `说明双条件成立后又被清零。检查播放的鼾声是否断续（每断一次 Snore 计时归零），换成连续音频；或板子是否被手碰得 roll 超过 20°。`),
+    pKv(`舵机只动一次：`, `正常现象——之后每次动作间隔 15 秒 OBSERVE。耐心等，或把 fusion_fsm.h 的 FUSION_OBSERVE_MS 临时改为 3000 加快演示。`),
+    pKv(`OLED 显示 INTERVENE 但舵机不动：`, `先单独跑第 6 关；若第 6 关正常，检查 PA8 是否被其它线压住、舵机 5V 是否掉到 4.5V 以下。`),
 
     /* ---------- 第 8 章 ---------- */
-    h1(`第 8 章 演示与论文数据采集`),
-    h2(`8.1 鼾声音源准备`),
+    h1(`第 8 章 机械组装与整机装配`),
+    p(`电路跑通后，把舵机装到枕头上才算“实物”。本章的结构全部用硬纸板、泡沫板和扎带完成，不需要 3D 打印，30 分钟可做完，答辩时演示效果比裸舵机直观得多。`),
+    h2(`8.1 材料与工具`),
+    table([2200, 1300, 2400], [`材料`, `规格`, `用途`], [
+      [`硬纸板`, `A3 两张`, `底座 + 抬升臂`],
+      [`泡沫板或薄枕头`, `30×20cm`, `枕面，直接接触头部`],
+      [`SG90 舵机`, `1 个`, `已通过第 6 关测试`],
+      [`舵盘`, `一字或十字，舵机附带`, `与抬升臂连接`],
+      [`M2 自攻螺丝`, `2 颗，舵机附带`, `固定舵机`],
+      [`双面胶 + 扎带`, `若干`, `固定舵盘与抬升臂`],
+      [`美工刀、直尺、记号笔`, `—`, `裁切与划线`],
+    ]),
+    h2(`8.2 五步装配`),
+    ...stepList([
+      `做底座：把硬纸板裁成 20×20cm，在正中偏后开一个 6×6cm 方孔，用于舵机线和电源线穿过。`,
+      `固定舵机：舵机两侧的安装耳用 M2 螺丝拧在底座上，输出轴朝上，并让输出轴位于底座中心线上（用记号笔先画十字定位）。`,
+      `装摆臂：把舵盘压到输出轴上（先不要拧死）；裁一条 15×8cm 硬纸板作为抬升臂，一端与舵盘重叠 3cm，用双面胶粘牢后再用扎带穿孔绑紧——只靠双面胶会在反复抬升中脱落。`,
+      `装枕面：泡沫板裁成 30×20cm，放在抬升臂上方，四角用小块双面胶“点粘”，方便答辩后拆开。`,
+      `理线：舵机线从底座方孔穿到下方，预留 15cm 余量并用手轻拉确认不会在抬升时被扯紧；线用胶带固定在底座背面。`,
+    ]),
+    h2(`8.3 角度标定（必做）`),
+    ...stepList([
+      `上电，串口输入 3 让舵机走到 90°，观察抬升臂是否水平。`,
+      `不水平就断电，拔下舵盘重新对齿（转动一个齿位再压回），不要用代码加偏移量去凑——机械对中更可靠。`,
+      `再输入 3 走完整行程，确认 0° 与 180° 都不会把纸板顶到桌面。`,
+      `用量角器或手机水平仪测 90°→105° 的实际抬升角，并量臂端抬起的毫米数（2° 约对应臂端 3—4mm），记下来写进论文 4.5 节。`,
+    ]),
+    note(`安全：抬升臂运动范围内不要放手；首次通电把手放在电源开关旁；舵机被卡住超过 2 秒会堵转发热，立即断电检查。整机结构总重控制在 300g 以内，SG90 的 1.6kg·cm 扭矩足够。`),
+
+    /* ---------- 第 9 章 ---------- */
+    h1(`第 9 章 演示与论文数据采集`),
+    h2(`9.1 鼾声音源准备`),
     bullet(`手机搜索「打鼾声 音效」，选一段 30 秒以上、节奏连续的，存到本地循环播放。`),
     bullet(`用蓝牙音箱外放，音量以 2 米外清晰可闻为准；手机扬声器音量通常不够触发。`),
     bullet(`另准备空调声、翻书声、电视声各一段，用于演示抗噪与误触发对比。`),
-    h2(`8.2 三分钟演示脚本`),
+    h2(`9.2 三分钟演示脚本`),
     table([700, 2500, 2700], [`时间`, `操作`, `讲解词要点`], [
       [`0:00`, `上电，串口显示启动横幅，OLED 显示 System Ready`, `系统由 STM32 主控 + 声音/姿态/显示/执行四模块组成`],
       [`0:30`, `输入 r，OLED 进入 FSM 页，LED 心跳`, `主循环 5ms 节拍，500ms 刷新页面`],
@@ -599,7 +733,16 @@ while (1)
       [`2:30`, `输入 s，展示一行实时状态`, `数据可观测、可记录`],
       [`2:45`, `输入 a，跑全部单元测试`, `工程具备自检能力，5/5 PASS`],
     ]),
-    h2(`8.3 采集真实数据写进论文`),
+    h3(`上台前 10 分钟检查清单`),
+    ...stepList([
+      `手机音频已下载到本地并设为循环，不依赖网络。`,
+      `蓝牙音箱电量充足、已配对；没有音箱就用手机最大音量贴近平放。`,
+      `板子、舵机、电源全部接好，先跑一次 1/2/3/4，确认 5/5 PASS。`,
+      `OLED 亮度足够（深色背景板前演示），串口窗口已打开并调到 115200。`,
+      `抬升臂空载手动转一圈，确认不会蹭到线或卡住。`,
+      `准备一句话解释“为什么必须仰卧+打鼾同时满足才干预”——这是评委最常问的点。`,
+    ]),
+    h2(`9.3 采集真实数据写进论文`),
     ...stepList([
       `打开 PC_Test/serial_monitor.py，把 COM 口改成你的 CH340 口，运行。`,
       `输入 r 进入主循环，然后按场景各录 3 分钟：安静 / 轻度噪声 / 中度噪声 / 打鼾 / 打鼾+仰卧 / 打鼾+侧卧。`,
@@ -608,9 +751,9 @@ while (1)
     ]),
     note(`实测指标低于仿真是正常现象，导师也更认可真实数据。可以在「不足与展望」里写明：受麦克风增益与家庭噪声影响，实测识别率较仿真下降 X 个百分点，后续通过自适应增益与前级滤波改善。`),
 
-    /* ---------- 第 9 章 ---------- */
-    h1(`第 9 章 真实报错对照表`),
-    h3(`9.1 编译类`),
+    /* ---------- 第 10 章 ---------- */
+    h1(`第 10 章 真实报错对照表`),
+    h3(`10.1 编译类`),
     table([2400, 2800, 1600], [`Build Output 里的原文`, `原因`, `处理`], [
       [`Error: L6218E: Undefined symbol HAL_ADC_Init`, `hal_conf 未启用 ADC 模块`, `CubeMX 里确认 ADC1 已配置并重新生成`],
       [`error: #5: cannot open source input file "app.h"`, `Include Paths 缺 Core\\Inc`, `5.3 补路径`],
@@ -619,8 +762,12 @@ while (1)
       [`Error: L6200E: Symbol HAL_ADC_ConvCpltCallback multiply defined`, `我们的 main.c 也被加进工程了`, `从工程移除 Core\\Src\\main.c`],
       [`warning: #223-D: function "printf" declared implicitly`, `缺 #include <stdio.h>`, `在 USER CODE Includes 加上`],
       [`Error: L6915E: Library reports error: __use_no_semihosting`, `未勾 Use MicroLIB`, `Target 页勾选 Use MicroLIB`],
+      [`*** Target uses ARM-Compiler 'Default Compiler Version 5' which is not available`, `AC5 未安装或路径未指定`, `按 2.2 节安装 AC5，并在 Target 页选中 version 5`],
+      [`error: #5: cannot open source input file "stm32f1xx_hal.h"`, `Include Paths 缺 Drivers 目录`, `补 Drivers\\STM32F1xx_HAL_Driver\\Inc 与 CMSIS 两个路径`],
+      [`Error: L6218E: Undefined symbol FLASH_PageErase`, `hal_conf 未启用 FLASH 模块`, `CubeMX 生成工程默认已启用，检查是否误用了自定义 hal_conf.h`],
+      [`Error: L6406E: No space in execution regions`, `程序超过 64KB Flash`, `Target 页 Optimization 选 Level 1 或 Level 2 重新编译`],
     ]),
-    h3(`9.2 下载与调试类`),
+    h3(`10.2 下载与调试类`),
     table([2400, 2800, 1600], [`报错原文`, `原因`, `处理`], [
       [`No ST-LINK detected`, `驱动未装/USB 线坏`, `重装 STSW-LINK009，换 USB 口`],
       [`Cannot access target. Shutting down debug session.`, `SWD 引脚被复用或线松`, `按住复位再下载；BOOT0=1 上电后全片擦除`],
@@ -628,8 +775,13 @@ while (1)
       [`Cannot Load Flash Programming Algorithm!`, `算法文件缺失`, `重新安装 DFP 包`],
       [`st-link usb communication error`, `克隆版固件异常`, `换一个 USB 口；不要升级固件`],
       [`Programming Done 但程序不跑`, `BOOT0 不在 0 或未勾 Reset and Run`, `跳线改 0；勾 Reset and Run 后重新下载`],
+      [`No target connected`, `3.3V/GND 未接或板子没供电`, `补接 GND，确认 3.3V 排针有 3.3V`],
+      [`SWD/JTAG Communication Failure`, `SWD 速率过高或线接触不良`, `Max Clock 降为 1.8MHz；缩短杜邦线；按住复位再下载`],
+      [`Programming error @ 0x08000000`, `芯片被读保护或 Flash 算法不匹配`, `CubeProgrammer 解除读保护 / 全片擦除后重下`],
+      [`RDDI-DAP Error`, `下载线过长或 GND 未共地`, `换短杜邦线，确保 GND 直连`],
+      [`Flash Download failed - Target DLL has been cancelled`, `调试会话被占用`, `关闭所有 Keil 调试窗口，重新进入 Debug 再 F8`],
     ]),
-    h3(`9.3 运行现象类`),
+    h3(`10.3 运行现象类`),
     table([2400, 2800, 1600], [`现象`, `最可能原因`, `处理`], [
       [`串口全是乱码`, `波特率不是 115200`, `CubeMX 与串口助手都改成 115200`],
       [`OLED 全黑`, `VCC 错/地址错/线反`, `量 3.3V；查 PB10/PB11；试 0x3D`],
@@ -638,7 +790,11 @@ while (1)
       [`舵机一转就复位`, `从 3.3V 取电`, `改独立 5V 2A`],
       [`FSM 停 IDLE`, `某个条件秒数不涨`, `看 OLED 第 0 页定位到具体模块`],
       [`重新生成代码后自己的代码消失`, `代码没写在 USER CODE 区域内`, `把代码移进 BEGIN/END 之间`],
-      [`Flash 计数每次归零`, `写保护或地址冲突`, `确认 STATS 地址 0x0807F000 未被程序占用`],
+      [`Flash 计数每次归零`, `写保护或地址冲突`, `确认 STATS 地址 0x0800FC00（第 63 页）未被程序占用`],
+      [`Keil 里中文注释变乱码`, `编辑器编码不是 UTF-8`, `Edit → Configuration → Editor → Encoding 选 UTF-8 后重开文件`],
+      [`上电直接卡住、串口无横幅`, `某个模块初始化死等（多为 I2C）`, `拔掉 MPU6050 或 OLED 再上电，若恢复说明该模块接线错`],
+      [`串口只能收不能发`, `CH340 的 RXD 没接 PA9`, `按表 3-1 补接，注意 TX/RX 交叉`],
+      [`OLED 出现方块`, `字库只支持 ASCII`, `不要显示中文，改用英文或数字`],
     ]),
 
     /* ---------- 附录 ---------- */
@@ -665,7 +821,7 @@ GND   所有模块 + 外部 5V 电源负极（必须共地）`),
       [`I2C 地址`, `MPU6050 0x68；SSD1306 0x3C（HAL 传 0x78）`],
       [`融合触发`, `双条件各持续 3000ms；观察 15000ms；冷却 5000ms`],
       [`干预角度`, `中位 90°，每次 +2°，最大 105°（相对 +15°）`],
-      [`Flash 统计`, `0x0807F000 起 1KB，CRC32 校验`],
+      [`Flash 统计`, `0x0800FC00 起 1KB（第 63 页），异或校验和`],
     ]),
     h1(`附录 C 最终验收清单`),
     table([5000, 900], [`项目`, `打勾`], [
@@ -674,6 +830,7 @@ GND   所有模块 + 外部 5V 电源负极（必须共地）`),
       [`下载后串口有启动横幅，输入 r 能进主循环`, `□`],
       [`第 1—6 关单元测试全部 PASS`, `□`],
       [`第 7 关：放鼾声能在 3 秒后抬升 2°，侧翻能回位`, `□`],
+      [`舵机已装到硬纸板底座，90° 时抬升臂水平，全行程不顶死`, `□`],
       [`OLED 三页轮播正常，Flash 计数掉电不丢`, `□`],
       [`已用 serial_monitor.py 采到至少 6 组真实数据`, `□`],
     ]),

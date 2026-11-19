@@ -19,12 +19,18 @@ static void flash_write(Stats_t *s) {
     s->magic = MAGIC;
     s->checksum = s->magic ^ s->snore_cnt ^ s->intervene_cnt
                 ^ s->max_angle_x10 ^ s->day_stamp;
+
     HAL_FLASH_Unlock();
-    FLASH_PageErase(STATS_FLASH_BASE);
-    HAL_FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
-    uint32_t *p = (uint32_t*)s;
-    for (int i = 0; i < (int)sizeof(Stats_t)/4; i++) {
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, STATS_FLASH_BASE + i*4, p[i]);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
+    FLASH_PageErase(STATS_FLASH_BASE);          /* 擦除第 63 页 (1KB) */
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
+
+    /* STM32F1 的 Flash 只支持半字(16bit)编程:
+       不能用 FLASH_TYPEPROGRAM_WORD, 必须按 uint16_t 逐个写入。 */
+    const uint16_t *p = (const uint16_t *)s;
+    for (uint32_t i = 0; i < sizeof(Stats_t) / 2U; i++) {
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,
+                          STATS_FLASH_BASE + i * 2U, p[i]);
     }
     HAL_FLASH_Lock();
 }

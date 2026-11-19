@@ -12,7 +12,7 @@
  *   | PA5  | (保留)     | —      | —                   |                                        |
  *   | PA6  | (保留)     | —      | —                   |                                        |
  *   | PA7  | (保留)     | —      | —                   |                                        |
- *   | PA8  | SERVO_PWM  | AF_PP  | TIM1_CH1            | SG90 PWM 50Hz, 5%—10% 占空比=0—180°     |
+ *   | PA8  | SERVO_PWM  | AF_PP  | TIM1_CH1            | SG90 PWM 50Hz, 2.5%—12.5% 占空比=0—180° |
  *   | PA9  | USART1_TX  | AF_PP  | USART1_TX           | 调试串口, 115200bps                     |
  *   | PA10 | USART1_RX  | IN_PU  | USART1_RX           |                                        |
  *   | PA11 | (保留)     | —      | —                   |                                        |
@@ -20,18 +20,18 @@
  *   | PA13 | SWDIO      | —      | SWD                 | 下载口                                  |
  *   | PA14 | SWCLK      | —      | SWD                 | 下载口                                  |
  *   | PA15 | (保留)     | —      | —                   |                                        |
- *   | PB0  | LED(板载)  | OUT_PP | GPIO                | 运行状态指示                            |
+ *   | PB0  | LED(外接)  | OUT_PP | GPIO                | 运行指示; Blue Pill 板载 LED 是 PC13   |
  *   | PB1  | (保留)     | —      | —                   |                                        |
  *   | PB2  | BOOT1      | —      | —                   | 内部下拉, 保持=0 从Flash启动            |
  *   | PB3  | (保留)     | —      | —                   |                                        |
  *   | PB4  | (保留)     | —      | —                   |                                        |
  *   | PB5  | (保留)     | —      | —                   |                                        |
- *   | PB6  | MPU_I2C_SCL| AF_OD  | I2C1_SCL            | 4.7kΩ 上拉至 3.3V                      |
- *   | PB7  | MPU_I2C_SDA| AF_OD  | I2C1_SDA            | 4.7kΩ 上拉至 3.3V                      |
+ *   | PB6  | MPU_I2C_SCL| AF_OD  | I2C1_SCL            | GY-521 模块板载上拉                    |
+ *   | PB7  | MPU_I2C_SDA| AF_OD  | I2C1_SDA            | GY-521 模块板载上拉                    |
  *   | PB8  | (保留)     | —      | —                   |                                        |
  *   | PB9  | (保留)     | —      | —                   |                                        |
- *   | PB10 | OLED_I2C_SCL|AF_OD  | I2C2_SCL            | SSD1306, 4.7kΩ上拉                     |
- *   | PB11 | OLED_I2C_SDA|AF_OD  | I2C2_SDA            | SSD1306, 4.7kΩ上拉                     |
+ *   | PB10 | OLED_I2C_SCL|AF_OD  | I2C2_SCL            | SSD1306, 模块板载上拉                  |
+ *   | PB11 | OLED_I2C_SDA|AF_OD  | I2C2_SDA            | SSD1306, 模块板载上拉                  |
  *   | PB12 | (保留)     | —      | —                   |                                        |
  *   | PB13 | (保留)     | —      | —                   |                                        |
  *   | PB14 | (保留)     | —      | —                   |                                        |
