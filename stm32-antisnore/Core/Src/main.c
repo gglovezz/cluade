@@ -21,6 +21,7 @@
 #include "flash_store.h"
 #include "snore_algo.h"
 #include "posture_algo.h"
+#include "fusion_fsm.h"
 #include "unit_test.h"
 
 /* ============== 外设句柄定义 ============== */
@@ -88,6 +89,7 @@ int main(void) {
     FLASH_Store_Init();
     SNORE_Algo_Init();
     POSTURE_Algo_Init();
+    FUSION_Init();                          /* 融合触发 FSM 初始化 */
 
     /* 启动 ADC-DMA 连续采样 (8kHz) */
     HAL_ADC_Start_DMA(MIC_ADC_HANDLE, (uint32_t*)mic_ring, MIC_RING_LEN);
@@ -117,29 +119,21 @@ int main(void) {
             SNORE_Algo_Update(frame, MIC_FRAME_LEN);
         }
 
-        /* 融合判定 + 干预 (200ms 一次) */
-        if ((tick % 40) == 0) {
-            int snore_flag = SNORE_Algo_IsSnoring();
-            int supine_flag = POSTURE_Algo_IsSupine();
-
-            if (snore_flag && supine_flag) {
-                /* 触发渐进式干预 —— 由 servo.c 的状态机处理 */
-                SERVO_Tick(INTERVENE);
-                FLASH_Store_SnoreEvent();
-            } else {
-                SERVO_Tick(OBSERVE);
-            }
-        }
+        /* 融合触发状态机 (每个主循环节拍都调用 —— 内部自带 3s/15s/5s 计时器) */
+        FUSION_Tick();
 
         /* OLED 轮播刷新 (500ms 一次) */
         if ((tick % 100) == 0) {
             static uint8_t page = 0;
             if (page == 0) {
+                /* 第 0 页: 融合状态 + 触发条件保持时间 */
+                char line1[20], line2[24], line3[24];
+                snprintf(line1, sizeof(line1), "FSM: %s", FUSION_StateName(FUSION_GetState()));
+                snprintf(line2, sizeof(line2), "Snore:%lus Sup:%lus",
+                         FUSION_GetSnoreHoldMs()/1000, FUSION_GetSupineHoldMs()/1000);
                 OLED_Clear();
-                OLED_DrawString(0, 0, "Status:");
-                OLED_DrawString(0, 8, "RUN");
-                OLED_DrawString(0, 16, "Posture:");
-                OLED_DrawString(0, 24, POSTURE_Algo_IsSupine() ? "SUPINE" : "SIDE");
+                OLED_DrawString(0, 0, line1);
+                OLED_DrawString(0, 16, line2);
             } else if (page == 1) {
                 float ang = SERVO_GetCurrentAngle();
                 char buf[24];
